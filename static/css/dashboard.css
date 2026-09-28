@@ -31,6 +31,55 @@ body::after {
     z-index: 1;
 }
 
+/* Topbar */
+#topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    z-index: 200;
+    background: linear-gradient(90deg, rgba(2,8,18,0.97) 0%, rgba(4,14,35,0.95) 50%, rgba(2,8,18,0.97) 100%);
+    border-bottom: 1px solid rgba(0,102,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    backdrop-filter: blur(12px);
+}
+
+/* 3D Orbital Globe Entrance Animation Screen */
+#globe-intro {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #020812;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#globe-canvas {
+    border-radius: 50%;
+    box-shadow: 0 0 80px rgba(0, 102, 255, 0.4);
+}
+
+#globe-status {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85em;
+    color: #4da6ff;
+    letter-spacing: 2px;
+}
+
+#globe-progress {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #0033cc, #4da6ff);
+    transition: width 0.3s ease;
+}
+
 /* Tactical Targeting Box */
 #targeting-box {
     position: absolute;
