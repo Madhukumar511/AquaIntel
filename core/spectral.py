@@ -85,27 +85,32 @@ ENDMEMBERS_10D = np.array([
 def decompose_spectral_mixture(df_eng: pd.DataFrame, lat: float = 0.0, lon: float = 0.0) -> dict:
     """
     Performs physical spectral unmixing across the 8 marine constituent endmembers.
-    Returns exact percentage abundances (strictly summing to 100.0%) and detailed breakdown.
+    Uses Non-Negative Constrained Least Squares (NNLS) to mathematically invert
+    the spectral mixing Gram matrix and ensure strictly conserved 100.0% fractional abundances.
     """
     from config import PRECISE_CONSTITUENTS
+    from scipy.optimize import nnls
     
     cols = ['B01', 'B02', 'B3N', 'B04', 'B05', 'B06', 'B07', 'B08', 'NDVI', 'FDI']
     X_samples = df_eng[cols].values if all(c in df_eng.columns for c in cols) else np.zeros((len(df_eng), 10))
     
-    # Compute cosine similarity for each pixel against the 8 endmembers
-    norm_X = np.linalg.norm(X_samples, axis=1, keepdims=True) + 1e-8
-    norm_E = np.linalg.norm(ENDMEMBERS_10D, axis=1, keepdims=True).T + 1e-8
-    sim_matrix = np.dot(X_samples, ENDMEMBERS_10D.T) / (norm_X * norm_E)
+    # Solve NNLS for each observed pixel spectrum
+    pixel_abundances = []
+    for x in X_samples:
+        a, _ = nnls(ENDMEMBERS_10D.T, x)
+        s = np.sum(a)
+        if s > 1e-6:
+            a = a / s
+        else:
+            a = np.ones(len(ENDMEMBERS_10D)) / len(ENDMEMBERS_10D)
+        pixel_abundances.append(a)
     
-    # Softmax scaling to calculate fractional abundances
-    exp_sim = np.exp(np.clip(sim_matrix * 5.0, -20, 20))
-    abundances = exp_sim / np.sum(exp_sim, axis=1, keepdims=True)
-    mean_fractions = np.mean(abundances, axis=0)
+    mean_fractions = np.mean(pixel_abundances, axis=0) if len(pixel_abundances) > 0 else np.zeros(8)
     
     # Format percentages to sum to exactly 100.0%
     raw_pct = [round(float(f * 100), 1) for f in mean_fractions]
     diff = round(100.0 - sum(raw_pct), 1)
-    raw_pct[0] = round(raw_pct[0] + diff, 1) # balance minor rounding diff on first category
+    raw_pct[0] = round(raw_pct[0] + diff, 1)
 
     breakdown = []
     for i, meta in enumerate(PRECISE_CONSTITUENTS):

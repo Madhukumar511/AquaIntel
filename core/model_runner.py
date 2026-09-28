@@ -54,10 +54,51 @@ def run_model_inference(df_features: pd.DataFrame) -> Dict[str, Any]:
     predictions = model_omni.predict(scaled_X, verbose=0)
 
     df = df_features.copy()
-    df['class_id'] = np.argmax(predictions, axis=1)
-    df['debris_conf'] = predictions[:, 0]
-    df['water_conf'] = predictions[:, 1]
-    df['organic_conf'] = predictions[:, 2]
+
+    if predictions.shape[1] == 8:
+        # High-Precision 8-Constituent Deep Neural Unmixer
+        from config import PRECISE_CONSTITUENTS
+        
+        # Plastics & Chemicals (Indices 0..4)
+        df['debris_conf'] = predictions[:, 0:5].sum(axis=1)
+        # Deep Water (Index 7)
+        df['water_conf'] = predictions[:, 7]
+        # Organic Algae (Index 6)
+        df['organic_conf'] = predictions[:, 6]
+        # Point classification: 0 = Debris, 1 = Water, 2 = Organic
+        df['class_id'] = np.where(df['debris_conf'] >= 0.15, 0, np.where(df['water_conf'] >= 0.50, 1, 2))
+        
+        # Build exact constituent breakdown directly from neural predictions
+        mean_abundances = np.mean(predictions, axis=0)
+        raw_pct = [round(float(f * 100), 1) for f in mean_abundances]
+        diff = round(100.0 - sum(raw_pct), 1)
+        raw_pct[0] = round(raw_pct[0] + diff, 1)
+
+        breakdown = []
+        for i, meta in enumerate(PRECISE_CONSTITUENTS):
+            breakdown.append({
+                "id": meta["id"],
+                "name": meta["name"],
+                "short": meta["short"],
+                "color": meta["color"],
+                "percentage": raw_pct[i],
+                "category": meta["category"]
+            })
+
+        unmix_summary = {
+            "constituents": breakdown,
+            "total_waste_pct": round(sum(raw_pct[0:5]), 1),
+            "total_minerals_pct": raw_pct[5],
+            "total_organic_pct": raw_pct[6],
+            "total_water_pct": raw_pct[7]
+        }
+    else:
+        # Legacy 3-class neural network (0: Debris, 1: Water, 2: Organic)
+        df['class_id'] = np.argmax(predictions, axis=1)
+        df['debris_conf'] = predictions[:, 0]
+        df['water_conf'] = predictions[:, 1]
+        df['organic_conf'] = predictions[:, 2]
+        unmix_summary = decompose_spectral_mixture(df)
 
     # Map backend classes to UI visualization indices (0: Debris, 1: Water, 2: Organic)
     color_map = {0: 2, 1: 0, 2: 1}
@@ -67,12 +108,10 @@ def run_model_inference(df_features: pd.DataFrame) -> Dict[str, Any]:
         columns={'ui_class_id': 'class_id', 'debris_conf': 'debris_confidence'}
     ).to_dict(orient='records')
 
-    debris_pct = round(float(df['debris_conf'].mean() * 100), 1)
-    water_pct = round(float(df['water_conf'].mean() * 100), 1)
-    organic_pct = round(float(df['organic_conf'].mean() * 100), 1)
+    debris_pct = unmix_summary["total_waste_pct"]
+    water_pct = unmix_summary["total_water_pct"]
+    organic_pct = unmix_summary["total_organic_pct"]
     fdi_score = round(float(df['FDI'].mean()), 3) if 'FDI' in df.columns else round(float(df['debris_conf'].mean() * 0.4), 3)
-
-    unmix_summary = decompose_spectral_mixture(df)
 
     return {
         "total_clusters": int(len(df[df['class_id'] == 0])),
