@@ -3,14 +3,32 @@
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 const USD_TO_INR = 83.5;
+
+// Realistic Indian & Global Circular Plastic Scrap Value per Metric Ton (USD)
+const RECOVERY_MARKET_RATES = {
+    pet_bottles: 320,   // Recycled PET flakes (~₹26,700/ton)
+    hdpe_rigid: 380,    // High-density PE crates/drums (~₹31,700/ton)
+    nylon_nets: 650,    // Marine Nylon-6 ghost gear (~₹54,200/ton)
+    microplastics: 85,  // Agglomerate pyrolysis scrap (~₹7,100/ton)
+    oil_sheen: 110,     // Reclaimed industrial hydrocarbons (~₹9,200/ton)
+    minerals: 40,       // Suspended marine salts/sediments (~₹3,300/ton)
+    sargassum: 55,      // Organic compost/biostimulant (~₹4,600/ton)
+    water: 0            // Pure seawater
+};
+
 function formatINR(amount) {
-    if (amount >= 10000000) {
-        return '₹' + (amount / 10000000).toFixed(2) + ' Cr';
-    } else if (amount >= 100000) {
-        return '₹' + (amount / 100000).toFixed(2) + ' L';
+    if (amount === null || amount === undefined || isNaN(amount)) return '₹0';
+    const isNeg = amount < 0;
+    const abs = Math.abs(amount);
+    let str = '';
+    if (abs >= 10000000) {
+        str = '₹' + (abs / 10000000).toFixed(2) + ' Cr';
+    } else if (abs >= 100000) {
+        str = '₹' + (abs / 100000).toFixed(2) + ' L';
     } else {
-        return '₹' + Math.round(amount).toLocaleString('en-IN');
+        str = '₹' + Math.round(abs).toLocaleString('en-IN');
     }
+    return isNeg ? '−' + str : str;
 }
 
 // Typewriter Terminal Animation
@@ -56,17 +74,17 @@ function copyGeminiOutput(e) {
     });
 }
 
-// ROI Calculation
-let globalWastePct = 0;
-let globalValuePerTon = 0;
+// ROI Calculation Engine
+let globalWastePct = 35.0; // Default baseline yield (35%)
+let globalValuePerTon = 280.0; // Default blended value ($280/ton)
 
 function calculateROI() {
-    if (globalWastePct === 0) return;
-    const tons = parseFloat(document.getElementById('roi-tons')?.value) || 0;
-    const costPerTonINR = parseFloat(document.getElementById('roi-cost')?.value) || 0;
+    const tons = Math.max(0.1, parseFloat(document.getElementById('roi-tons')?.value) || 25);
+    const costPerTonINR = Math.max(0, parseFloat(document.getElementById('roi-cost')?.value) || 4500);
 
-    const usableYield = tons * (globalWastePct / 100);
-    const revenueUSD = usableYield * globalValuePerTon;
+    // Yield = Tons collected × (% of usable recyclable polymer / 100)
+    const usableYieldTons = tons * (globalWastePct / 100.0);
+    const revenueUSD = usableYieldTons * globalValuePerTon;
     const revenueINR = revenueUSD * USD_TO_INR;
     const totalCostINR = tons * costPerTonINR;
     const profitINR = revenueINR - totalCostINR;
@@ -74,7 +92,7 @@ function calculateROI() {
     const revEl = document.getElementById('roi-revenue');
     if (revEl) {
         revEl.innerText = formatINR(revenueINR);
-        revEl.style.fontSize = "1.4em";
+        revEl.style.fontSize = "1.3em";
     }
     const costEl = document.getElementById('roi-total-cost');
     if (costEl) costEl.innerText = '−' + formatINR(totalCostINR);
@@ -278,10 +296,30 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
         }
 
         globalWastePct = result.metrics.avg_metal;
-        globalValuePerTon = result.intelligence.base_value_per_ton;
+
+        // Calculate dynamic blended market rate from detected constituents
+        if (result.breakdown && Array.isArray(result.breakdown)) {
+            let totalValSum = 0;
+            let totalWastePctSum = 0;
+            result.breakdown.forEach(item => {
+                if (item.id !== 'water' && item.percentage > 0) {
+                    const price = RECOVERY_MARKET_RATES[item.id] || 250;
+                    totalValSum += (item.percentage / 100.0) * price;
+                    totalWastePctSum += (item.percentage / 100.0);
+                }
+            });
+            if (totalWastePctSum > 0) {
+                globalValuePerTon = Math.round(totalValSum / totalWastePctSum);
+            } else {
+                globalValuePerTon = result.intelligence.base_value_per_ton || 280;
+            }
+        } else {
+            globalValuePerTon = result.intelligence.base_value_per_ton || 280;
+        }
+
         document.getElementById('roi-zone-type').innerText = result.intelligence.zone_type;
         document.getElementById('roi-value-ton').innerText = formatINR(globalValuePerTon * USD_TO_INR) + '/ton';
-        document.getElementById('roi-yield').innerText = globalWastePct + "%";
+        document.getElementById('roi-yield').innerText = globalWastePct.toFixed(1) + "%";
         calculateROI();
 
         typeWriter("Uplinking to Gemini Core for satellite ocean analysis...", 'ai-insight', 20);
@@ -291,7 +329,8 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
         document.getElementById('gp-rsi').textContent = (result.metrics.fdi_score || result.metrics.rsi_score).toFixed(3);
         document.getElementById('gp-metal').textContent = result.metrics.avg_metal + '%';
 
-        const recoveryINR = result.metrics.avg_metal * result.intelligence.base_value_per_ton * 50 * USD_TO_INR;
+        const batchTons = parseFloat(document.getElementById('roi-tons')?.value) || 25;
+        const recoveryINR = (result.metrics.avg_metal / 100.0) * globalValuePerTon * batchTons * USD_TO_INR;
         document.getElementById('gp-recovery').textContent = formatINR(recoveryINR);
         document.getElementById('gemini-zone-label').textContent = '◈ ACTIVE: ' + result.intelligence.zone_type.toUpperCase();
         document.getElementById('topbar-sector').textContent = '◈ TARGET LOCKED: ' + sectorName.toUpperCase();
