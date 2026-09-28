@@ -14,16 +14,29 @@ LAMBDA_SWIR1 = 1650.0 # Band B04
 GAMMA_BIERMANN = (LAMBDA_NIR - LAMBDA_RED) / (LAMBDA_SWIR1 - LAMBDA_RED)  # ~0.1485
 
 def normalize_bands(df: pd.DataFrame, bands: List[str] = BANDS) -> pd.DataFrame:
-    """Applies atmospheric min-max normalization across all multispectral bands."""
+    """
+    Calibrates raw satellite digital numbers (DN) to physical surface reflectance [0.0, 1.0].
+    Preserves natural optical band ratios and prevents artificial SWIR noise stretching
+    (which falsely inflated Hydrocarbon Oil Sheens and Minerals).
+    """
     df_norm = df.copy()
-    for b in bands:
-        if b in df_norm.columns:
-            b_min = df_norm[b].min()
-            b_max = df_norm[b].max()
-            if b_max > b_min:
-                df_norm[b] = (df_norm[b] - b_min) / (b_max - b_min + 1e-8)
-            else:
-                df_norm[b] = 0.0
+    existing_bands = [b for b in bands if b in df_norm.columns]
+    if not existing_bands:
+        return df_norm
+
+    max_val = float(df_norm[existing_bands].values.max())
+
+    for b in existing_bands:
+        if max_val > 255.0:
+            # 16-bit ASTER or Sentinel-2 Level-2A (10,000 scale)
+            df_norm[b] = np.clip(df_norm[b] / 10000.0, 0.0, 1.0)
+        elif max_val > 1.0:
+            # 8-bit standard imagery (255 scale)
+            df_norm[b] = np.clip(df_norm[b] / 255.0, 0.0, 1.0)
+        else:
+            # Already physical surface reflectance [0.0, 1.0]
+            df_norm[b] = np.clip(df_norm[b], 0.0, 1.0)
+
     return df_norm
 
 def compute_ndvi(nir: np.ndarray, red: np.ndarray) -> np.ndarray:
