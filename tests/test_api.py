@@ -102,3 +102,25 @@ def test_analyze_gemini_endpoint():
     assert "minerals_breakdown" in data
     assert "recommendation" in data
     assert len(data["insight"]) > 10
+
+def test_spectral_bands_endpoint():
+    """Verify satellite sensor band metadata endpoint."""
+    response = client.get("/api/spectral/bands")
+    assert response.status_code == 200
+    data = response.json()
+    assert "sensor" in data
+    assert "bands" in data
+    assert "B01" in data["bands"]
+    assert "B3N" in data["bands"]
+
+def test_static_assets_served():
+    """Verify CSS and JS modular assets are served with HTTP 200."""
+    css_res = client.get("/static/css/dashboard.css")
+    assert css_res.status_code == 200
+    assert "AQUAINTEL" in css_res.text
+
+    js_map = client.get("/static/js/tactical_map.js")
+    assert js_map.status_code == 200
+
+    js_scan = client.get("/static/js/scan_controller.js")
+    assert js_scan.status_code == 200

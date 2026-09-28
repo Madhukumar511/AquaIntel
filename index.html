@@ -2,134 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>WasteIntel AI | Enterprise Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaIntel AI | Global Marine Surface Sensing Core</title>
     
+    <!-- Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
     <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.js"></script>
     <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.13.0/mapbox-gl.css" rel="stylesheet" />
     
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap');
-        
-        body { margin: 0; padding: 0; font-family: 'Exo 2', sans-serif; background: #020812; color: #e8f4ff; overflow: hidden;}
-        #map { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; cursor: crosshair; }
-        
-        body::after { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 5, 20, 0.6) 100%); pointer-events: none; z-index: 1; }
-        
-        /* TACTICAL TARGETING SQUARE */
-        #targeting-box {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 300px; height: 300px; border: 2px dashed rgba(0, 102, 255, 0.8);
-            background: rgba(0, 102, 255, 0.05); z-index: 5; 
-            pointer-events: none; /* Allows dragging map through the box */
-            box-shadow: 0 0 40px rgba(0, 102, 255, 0.15) inset, 0 0 20px rgba(0, 102, 255, 0.2); 
-            display: none; border-radius: 4px;
-            backdrop-filter: contrast(1.1);
-        }
-        
-        /* Tactical Inner Crosshairs */
-        #targeting-box::before, #targeting-box::after { content: ''; position: absolute; background: rgba(0, 102, 255, 0.5); pointer-events: none; }
-        #targeting-box::before { top: 50%; left: 45%; right: 45%; height: 2px; transform: translateY(-50%); }
-        #targeting-box::after { left: 50%; top: 45%; bottom: 45%; width: 2px; transform: translateX(-50%); }
-
-        .target-corner { position: absolute; width: 25px; height: 25px; border: 3px solid #0066ff; pointer-events: none; transition: 0.2s ease; }
-        .tc-tl { top: -3px; left: -3px; border-right: none; border-bottom: none; }
-        .tc-tr { top: -3px; right: -3px; border-left: none; border-bottom: none; }
-        .tc-bl { bottom: -3px; left: -3px; border-right: none; border-top: none; }
-        
-        /* The Massive Glowing Resize Handle */
-        .tc-br { 
-            bottom: -15px; right: -15px; width: 40px; height: 40px; border: none;
-            pointer-events: auto; cursor: nwse-resize; 
-            background: rgba(0, 102, 255, 0.2); border-radius: 50%;
-            border: 2px solid #0066ff; box-shadow: 0 0 15px rgba(0,102,255,0.4);
-            display: flex; align-items: center; justify-content: center;
-            transition: transform 0.2s, background 0.2s;
-        }
-        .tc-br:hover { background: rgba(0, 102, 255, 0.5); transform: scale(1.15); box-shadow: 0 0 25px #0066ff; }
-        .tc-br::after { content: '⤡'; color: #fff; font-size: 18px; font-weight: bold; pointer-events: none;}
-        
-        #targeting-label { position: absolute; top: -28px; left: 0; font-family: 'Share Tech Mono'; color: #4da6ff; font-size: 0.85em; letter-spacing: 2px; pointer-events: none; text-shadow: 0 0 10px #0066ff; background: rgba(0,0,0,0.5); padding: 2px 8px; border-radius: 4px; }
-
-        /* Panels */
-        #ui-panel { position: absolute; top: 58px; left: 20px; padding: 25px; border-radius: 8px; z-index: 10; width: 400px; max-height: calc(100vh - 78px); overflow-y: auto; background: rgba(4, 14, 35, 0.88); border: 1px solid rgba(0, 102, 255, 0.25); border-top: 1px solid rgba(77, 166, 255, 0.4); border-left: 1px solid rgba(77, 166, 255, 0.3); box-shadow: 0 0 0 1px rgba(0, 102, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(77, 166, 255, 0.15), inset 0 0 40px rgba(0, 20, 60, 0.5); transform: perspective(1000px) rotateY(-1deg); backdrop-filter: blur(20px) saturate(180%); opacity: 0; pointer-events: none; transition: opacity 1.5s ease, transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), left 0.45s cubic-bezier(0.4, 0, 0.2, 1); }
-        #gemini-panel { position: fixed; top: 58px; right: 20px; width: 360px; max-height: calc(100vh - 78px); overflow-y: auto; z-index: 10; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; background: rgba(4, 14, 35, 0.88); border: 1px solid rgba(0, 102, 255, 0.25); border-top: 1px solid rgba(77, 166, 255, 0.4); border-right: 1px solid rgba(77, 166, 255, 0.3); box-shadow: 0 0 0 1px rgba(0, 102, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(77, 166, 255, 0.15), inset 0 0 40px rgba(0, 20, 60, 0.5); transform: perspective(1000px) rotateY(1deg); backdrop-filter: blur(20px) saturate(180%); opacity: 0; pointer-events: none; transition: opacity 1.5s ease, transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), right 0.45s cubic-bezier(0.4, 0, 0.2, 1); }
-        #ui-panel::-webkit-scrollbar, #gemini-panel::-webkit-scrollbar { width: 4px; }
-        #ui-panel::-webkit-scrollbar-thumb, #gemini-panel::-webkit-scrollbar-thumb { background: rgba(0, 102, 255, 0.5); border-radius: 2px; }
-
-        #ui-panel.hidden-left { transform: perspective(1000px) rotateY(-1deg) translateX(calc(-100% - 40px)); opacity: 0.0; }
-        #gemini-panel.hidden-right { transform: perspective(1000px) rotateY(1deg) translateX(calc(100% + 40px)); opacity: 0.0; }
-
-        /* Peek restore buttons */
-        .peek-btn { position: fixed; top: 50%; transform: translateY(-50%); z-index: 50; background: rgba(4, 14, 35, 0.92); border: 1px solid rgba(0, 102, 255, 0.5); color: #4da6ff; font-family: 'Share Tech Mono', monospace; font-size: 0.7em; letter-spacing: 2px; padding: 14px 7px; cursor: pointer; border-radius: 4px; writing-mode: vertical-rl; text-orientation: mixed; box-shadow: 0 0 20px rgba(0, 102, 255, 0.2); transition: all 0.2s ease; opacity: 0; pointer-events: none; width: auto !important; margin: 0 !important; }
-        .peek-btn:hover { background: rgba(0, 40, 100, 0.95); box-shadow: 0 0 30px rgba(0, 102, 255, 0.4); border-color: rgba(77, 166, 255, 0.7); }
-        .peek-btn.visible { opacity: 1; pointer-events: auto; }
-        #peek-left  { left: 0; border-left: none; border-top-left-radius: 0; border-bottom-left-radius: 0; }
-        #peek-right { right: 0; border-right: none; border-top-right-radius: 0; border-bottom-right-radius: 0; }
-
-        /* Animated Corner Brackets */
-        .corner { position: absolute; width: 16px; height: 16px; border: 2px solid #0066ff; animation: cornerPulse 2s infinite alternate; pointer-events: none; }
-        .corner.tl { top: -1px; left: -1px; border-right: none; border-bottom: none; border-top-left-radius: 8px; }
-        .corner.tr { top: -1px; right: -1px; border-left: none; border-bottom: none; border-top-right-radius: 8px; }
-        .corner.bl { bottom: -1px; left: -1px; border-right: none; border-top: none; border-bottom-left-radius: 8px; }
-        .corner.br { bottom: -1px; right: -1px; border-left: none; border-top: none; border-bottom-right-radius: 8px; }
-        @keyframes cornerPulse { 0%, 100% { opacity: 0.6; box-shadow: 0 0 4px #0066ff; } 50%      { opacity: 1.0; box-shadow: 0 0 12px #0066ff, 0 0 24px rgba(0,102,255,0.4); } }
-
-        /* Typography & Layout */
-        h2 { margin: 0; color: #4da6ff; font-family: 'Share Tech Mono', monospace; font-size: 1.8em; text-transform: uppercase; letter-spacing: 3px; text-shadow: 0 0 10px #0066ff, 0 0 30px rgba(0, 102, 255, 0.5); position: relative; }
-        .header-line { height: 1px; width: 100%; margin-top: 5px; margin-bottom: 20px; background: linear-gradient(90deg, transparent, #0066ff, #4da6ff, #0066ff, transparent); background-size: 200% 100%; animation: lineSweep 3s linear infinite; }
-        @keyframes lineSweep { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-        .tab-container { background: rgba(0, 5, 20, 0.8); border: 1px solid rgba(0, 102, 255, 0.2); border-radius: 8px; padding: 4px; display: flex; gap: 4px; margin-bottom: 20px; }
-        .tab { flex: 1; padding: 9px; text-align: center; cursor: pointer; border-radius: 5px; font-family: 'Share Tech Mono'; font-size: 0.8em; color: #5588aa; transition: all 0.25s; letter-spacing: 1px; border: none; text-transform: uppercase; }
-        .tab.active { background: linear-gradient(180deg, #0055dd, #002299); color: #cce4ff; box-shadow: 0 2px 8px rgba(0,50,180,0.6), inset 0 1px 0 rgba(100,180,255,0.2); border: 1px solid rgba(0,102,255,0.5); text-shadow: 0 0 8px rgba(100,180,255,0.5); }
-        .tab:hover:not(.active) { color: #e8f4ff; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.4s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-        select, input { width: 100%; padding: 12px; margin-top: 10px; background: rgba(0, 10, 30, 0.6); color: #e8f4ff; border: 1px solid rgba(0, 102, 255, 0.2); border-radius: 6px; font-family: 'Exo 2', sans-serif; outline: none; transition: 0.3s; box-sizing: border-box; }
-        select:focus, input:focus { border-color: #4da6ff; box-shadow: 0 0 12px rgba(0, 102, 255, 0.3); }
-        
-        #scan-btn { width: 100%; padding: 14px; margin-top: 15px; cursor: pointer; border-radius: 6px; font-family: 'Exo 2', sans-serif; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; color: #cce4ff; background: linear-gradient(180deg, #0055dd 0%, #002299 60%, #001166 100%); border: 1px solid #0066ff; border-bottom: 3px solid #001144; border-top: 1px solid #2288ff; box-shadow: 0 4px 15px rgba(0, 50, 180, 0.5); transform: translateY(0px); transition: all 0.3s ease; text-shadow: 0 0 8px rgba(100, 180, 255, 0.6); }
-        #scan-btn:hover { background: linear-gradient(180deg, #0066ff 0%, #003399 60%, #001177 100%); box-shadow: 0 6px 25px rgba(0, 80, 255, 0.7), 0 0 50px rgba(0, 100, 255, 0.3), inset 0 1px 0 rgba(150, 200, 255, 0.3); transform: translateY(-2px); }
-        #scan-btn:active { transform: translateY(2px); border-bottom-width: 1px; box-shadow: 0 2px 8px rgba(0,50,180,0.4); }
-        #scan-btn:disabled { background: #112; color: #445; box-shadow: none; cursor: not-allowed; border-color: #223; border-bottom-width: 1px;}
-
-        .scan-line { width: 100%; height: 60px; position: absolute; left: 0; pointer-events: none; z-index: 100; display: none; background: linear-gradient(180deg, transparent 0%, rgba(0, 102, 255, 0.15) 48%, rgba(77, 166, 255, 0.9) 50%, rgba(0, 102, 255, 0.15) 52%, transparent 100%); box-shadow: 0 0 20px rgba(0, 102, 255, 0.4); }
-
-        .stat-box { background: rgba(0, 10, 30, 0.7); border: 1px solid rgba(0, 102, 255, 0.2); border-left: 3px solid #0066ff; border-radius: 6px; padding: 14px 16px; position: relative; overflow: hidden; margin-top: 15px; }
-        .stat-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, #0066ff, transparent); }
-        .stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .stat-val { font-family: 'Share Tech Mono', monospace; font-size: 1.4em; color: #e8f4ff; }
-        .highlight-red { color: #ff3333; text-shadow: 0 0 10px rgba(255,51,51,0.4); }
-        .highlight-green { color: #00ff88; text-shadow: 0 0 10px rgba(0,255,136,0.4); }
-
-        /* THE FIX: PRECISE MARINE COLORS FOR THE 4-PART PROGRESS BAR */
-        .progress-container { background: rgba(0, 5, 20, 0.9); border: 1px solid rgba(0, 102, 255, 0.15); border-radius: 4px; height: 10px; overflow: hidden; display: flex; margin: 8px 0 15px 0; }
-        .prog-plastic { background: linear-gradient(90deg, #cc0000, #ff3333); box-shadow: 0 0 8px rgba(255, 51, 51, 0.7); transition: width 1.5s; }
-        .prog-metal { background: linear-gradient(90deg, #cc7700, #ffaa00); box-shadow: 0 0 8px rgba(255, 170, 0, 0.7); transition: width 1.5s; }
-        .prog-city { background: linear-gradient(90deg, #0044cc, #0088ff); box-shadow: 0 0 8px rgba(0, 136, 255, 0.7); transition: width 1.5s; }
-        .prog-minerals { background: linear-gradient(90deg, #009966, #00cc88); box-shadow: 0 0 8px rgba(0, 204, 136, 0.7); transition: width 1.5s; }
-
-        .terminal-dot { width: 8px; height: 8px; border-radius: 50%; }
-        .blinking-cursor { display: inline-block; width: 8px; height: 14px; background: #4da6ff; animation: blink 1s step-end infinite; vertical-align: middle; margin-left: 4px; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-        .label { font-size: 0.75em; color: #5588aa; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;}
-
-        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px;}
-        .input-group label { font-size: 0.7em; color: #5588aa; text-transform: uppercase; font-weight: 600;}
-
-        .search-results { position: absolute; top: 100%; left: 0; right: 0; background: rgba(0,10,30,0.95); border: 1px solid rgba(0,102,255,0.4); border-top: none; border-radius: 0 0 6px 6px; max-height: 160px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.5); backdrop-filter: blur(10px); }
-        .search-item { padding: 12px; font-size: 0.85em; color: #e8f4ff; cursor: pointer; border-bottom: 1px solid rgba(0,102,255,0.15); transition: background 0.2s; }
-        .search-item:hover { background: rgba(0,102,255,0.2); }
-        .search-item:last-child { border-bottom: none; }
-    </style>
+    <!-- Modular Dashboard Stylesheet -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 <body>
 
-<div id="topbar" style="position: fixed; top: 0; left: 0; right: 0; height: 48px; z-index: 200; background: linear-gradient(90deg, rgba(2,8,18,0.97) 0%, rgba(4,14,35,0.95) 50%, rgba(2,8,18,0.97) 100%); border-bottom: 1px solid rgba(0,102,255,0.2); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; backdrop-filter: blur(12px);">
+<!-- Top Navigation Bar -->
+<div id="topbar">
   <div style="display:flex; align-items:center; gap:12px;">
     <div style="width:28px; height:28px; border:1px solid #0066ff; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:14px; color:#4da6ff;">⬡</div>
     <span style="font-family:'Share Tech Mono'; font-size:1em; color:#4da6ff; letter-spacing:3px;">AQUAINTEL AI</span>
@@ -137,33 +25,40 @@
   <div style="display:flex; align-items:center; gap:20px; font-family:'Share Tech Mono'; font-size:0.65em; color:#334466;">
     <span id="topbar-sector">◈ FREE ROAM MODE</span>
     <span id="topbar-status" style="color:#00ff88;">● SYSTEM NOMINAL</span>
-    <span id="topbar-time"></span>
+    <span id="topbar-time">00:00:00 UTC</span>
   </div>
 </div>
 
-<div id="globe-intro" style="position: fixed; inset: 0; z-index: 9999; background: #020812; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px;">
-    <canvas id="globe-canvas" width="420" height="420" style="border-radius:50%; box-shadow: 0 0 80px rgba(0,102,255,0.4);"></canvas>
-    <div id="globe-status" style="font-family:'Share Tech Mono'; font-size:0.85em; color:#4da6ff;">INITIALIZING ORBITAL LINK...</div>
+<!-- Three.js 3D Orbital Globe Entrance Animation -->
+<div id="globe-intro">
+    <canvas id="globe-canvas" width="420" height="420"></canvas>
+    <div id="globe-status">INITIALIZING ORBITAL LINK...</div>
     <div style="width:300px; height:2px; background:rgba(0,102,255,0.15);">
-        <div id="globe-progress" style="height:100%; width:0%; background:linear-gradient(90deg,#0033cc,#4da6ff); transition: width 0.3s ease;"></div>
+        <div id="globe-progress"></div>
     </div>
 </div>
 
+<!-- Primary Interactive Map Canvas -->
 <div id="map"></div>
 
+<!-- Tactical Targeting Reticle and Resizable Symmetrical Grid -->
 <div id="targeting-box">
     <div id="targeting-label">TARGET ZONE</div>
-    <div class="target-corner tc-tl"></div><div class="target-corner tc-tr"></div>
-    <div class="target-corner tc-bl"></div><div class="target-corner tc-br"></div>
+    <div class="target-corner tc-tl"></div>
+    <div class="target-corner tc-tr"></div>
+    <div class="target-corner tc-bl"></div>
+    <div class="target-corner tc-br"></div>
 </div>
 
 <div class="scan-line" id="scanner"></div>
 
-<button class="peek-btn" id="peek-left"  onclick="showPanels()">⬡ CONTROLS</button>
+<!-- Collapsible Peek Controls -->
+<button class="peek-btn" id="peek-left" onclick="showPanels()">⬡ CONTROLS</button>
 <button class="peek-btn" id="peek-right" onclick="showPanels()">GEMINI ⬡</button>
 
 <button id="view-toggle" onclick="toggleView()" style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:50; background:rgba(4,14,35,0.9); border:1px solid rgba(0,102,255,0.4); color:#4da6ff; font-family:'Share Tech Mono'; font-size:0.75em; padding:10px 16px; border-radius:6px; cursor:pointer; letter-spacing:1px; box-shadow: 0 4px 15px rgba(0,50,180,0.3); width: auto !important; margin: 0 !important; transition: opacity 0.3s ease;">⬡ 3D / TOP VIEW</button>
 
+<!-- Left Control & Analysis Panel -->
 <div id="ui-panel">
     <div class="corner tl"></div><div class="corner tr"></div>
     <div class="corner bl"></div><div class="corner br"></div>
@@ -177,13 +72,14 @@
         <div class="tab" onclick="switchTab('guide', this)">How To Use</div>
     </div>
 
+    <!-- Tab 1: Tactical Multispectral Scan -->
     <div id="tab-tactical" class="tab-content active">
         <label class="label">Target Area Search</label>
         
         <button id="toggle-search-btn" onclick="toggleSearch()" style="width: 100%; background: rgba(0, 102, 255, 0.1); border: 1px solid rgba(0, 102, 255, 0.4); color: #4da6ff; padding: 10px; border-radius: 6px; font-family: 'Share Tech Mono'; font-size: 0.75em; cursor: pointer; margin-bottom: 10px; transition: 0.3s;">🔍 OPEN LOCATION SEARCH</button>
 
         <div id="search-container" style="position: relative; display: none;">
-            <input type="text" id="location-input" placeholder="Search any city or area..." autocomplete="off">
+            <input type="text" id="location-input" placeholder="Search any ocean region or coast..." autocomplete="off">
             <div id="search-suggestions" class="search-results" style="display:none;"></div>
         </div>
         <input type="hidden" id="selected-coords" value="">
@@ -211,7 +107,7 @@
             </div>
 
             <div style="margin-top: 20px;">
-                <div class="stat-row" style="margin-bottom: 2px;"><span class="label">Zone Composition</span></div>
+                <div class="stat-row" style="margin-bottom: 2px;"><span class="label">Surface Composition</span></div>
                 <div class="progress-container">
                     <div id="bar-plastic" class="prog-plastic" style="width: 0%;"></div>
                     <div id="bar-metal" class="prog-metal" style="width: 0%;"></div>
@@ -228,14 +124,15 @@
         </div>
     </div>
 
+    <!-- Tab 2: Financial ROI Projections -->
     <div id="tab-roi" class="tab-content">
         <div style="margin-bottom: 15px;">
-            <span class="label" style="color:#00aaff;">Mining Projection Engine</span>
-            <p style="font-size: 0.85em; color: #5588aa; margin-top: 5px;">Configure extraction parameters based on AI scan data to project profitability.</p>
+            <span class="label" style="color:#00aaff;">Recovery Projection Engine</span>
+            <p style="font-size: 0.85em; color: #5588aa; margin-top: 5px;">Configure marine harvest parameters based on satellite telemetry.</p>
         </div>
         
         <p style="font-size:0.78em; color:#5588aa; font-family:'Share Tech Mono'; letter-spacing:1px; margin-bottom:8px;">
-          ◈ Complete a tactical scan first to populate AI yield data
+          ◈ Execute scan first to populate AI yield coefficients
         </p>
 
         <div class="input-grid">
@@ -244,7 +141,7 @@
                 <input type="number" id="roi-tons" value="5000" oninput="calculateROI()">
             </div>
             <div class="input-group">
-                <label>Extraction Cost/Ton (₹)</label>
+                <label>Recovery Cost/Ton (₹)</label>
                 <input type="number" id="roi-cost" value="3750" oninput="calculateROI()">
             </div>
         </div>
@@ -281,21 +178,27 @@
         </div>
     </div>
 
+    <!-- Tab 3: Operator Guide -->
     <div id="tab-guide" class="tab-content">
-      <div style="font-family:'Share Tech Mono';font-size:0.68em;color:#334466;letter-spacing:2px;margin-bottom:16px;">◈ OPERATOR FIELD MANUAL v5.0</div>
+      <div style="font-family:'Share Tech Mono';font-size:0.68em;color:#334466;letter-spacing:2px;margin-bottom:16px;">◈ SATELLITE OPERATOR MANUAL v6.0</div>
       <div style="display:flex;flex-direction:column;gap:10px;">
         <div style="background:rgba(0,10,30,0.6);border:1px solid rgba(0,102,255,0.15);border-left:3px solid #0066ff;border-radius:4px;padding:12px 14px;">
-          <div style="font-family:'Share Tech Mono';font-size:0.72em;color:#4da6ff;letter-spacing:2px;margin-bottom:6px;">STEP 1 — SEARCH SECTOR</div>
-          <div style="font-size:0.82em;color:#8aaabb;line-height:1.6;">Use the Search bar to find any city. Then explicitly <b>drag the bottom right corner</b> of the grid to resize.</div>
+          <div style="font-family:'Share Tech Mono';font-size:0.72em;color:#4da6ff;letter-spacing:2px;margin-bottom:6px;">STEP 1 — TARGET OCEAN SECTOR</div>
+          <div style="font-size:0.82em;color:#8aaabb;line-height:1.6;">Search location or drag map. Click <b>ACTIVATE TARGETING GRID</b> and drag the bottom-right corner to scale the scanning radius.</div>
         </div>
         <div style="background:rgba(0,10,30,0.6);border:1px solid rgba(0,102,255,0.15);border-left:3px solid #ffaa00;border-radius:4px;padding:12px 14px;">
-          <div style="font-family:'Share Tech Mono';font-size:0.72em;color:#ffaa00;letter-spacing:2px;margin-bottom:6px;">STEP 2 — INITIATE DEEP SCAN</div>
-          <div style="font-size:0.82em;color:#8aaabb;line-height:1.6;">Click SCAN TARGET ZONE to run the trained DNN classifier.</div>
+          <div style="font-family:'Share Tech Mono';font-size:0.72em;color:#ffaa00;letter-spacing:2px;margin-bottom:6px;">STEP 2 — EXECUTE SATELLITE SCAN</div>
+          <div style="font-size:0.82em;color:#8aaabb;line-height:1.6;">Click <b>EXECUTE DEEP SCAN</b> to query multispectral bands (B01-B08), compute FDI index, and run neural inference.</div>
+        </div>
+        <div style="background:rgba(0,10,30,0.6);border:1px solid rgba(0,102,255,0.15);border-left:3px solid #00ff88;border-radius:4px;padding:12px 14px;">
+          <div style="font-family:'Share Tech Mono';font-size:0.72em;color:#00ff88;letter-spacing:2px;margin-bottom:6px;">STEP 3 — RECYCLE & RECOVER</div>
+          <div style="font-size:0.82em;color:#8aaabb;line-height:1.6;">Click the green <b>VIEW DETECTED ITEMS</b> button to open the circular economy recovery guide for detected materials.</div>
         </div>
       </div>
     </div>
 </div>
 
+<!-- Right Gemini AI Analysis Panel -->
 <div id="gemini-panel">
   <div class="corner tl"></div><div class="corner tr"></div>
   <div class="corner bl"></div><div class="corner br"></div>
@@ -316,11 +219,11 @@
         <div style="font-family:'Share Tech Mono';font-size:0.9em;color:#4da6ff;margin-top:4px;" id="gp-zone-type">—</div>
       </div>
       <div class="stat-box" style="margin-top:0;padding:10px 12px;">
-        <div class="label">RSI Score</div>
+        <div class="label">FDI Score</div>
         <div style="font-family:'Share Tech Mono';font-size:0.9em;color:#ffaa00;margin-top:4px;" id="gp-rsi">—</div>
       </div>
       <div class="stat-box" style="margin-top:0;padding:10px 12px;">
-        <div class="label">Debris Confidence</div>
+        <div class="label">Debris Coverage</div>
         <div style="font-family:'Share Tech Mono';font-size:0.9em;color:#ffaa00;margin-top:4px;" id="gp-metal">—</div>
       </div>
       <div class="stat-box" style="margin-top:0;padding:10px 12px;">
@@ -351,29 +254,17 @@
   </div>
   
   <div style="margin-top:14px;display:flex;gap:8px;">
-    <button id="gemini-expand-btn" onclick="toggleGeminiExpand()" style="
-      flex:1;padding:9px;background:rgba(0,20,60,0.6);
-      border:1px solid rgba(0,102,255,0.3);border-bottom:2px solid rgba(0,0,50,0.8);
-      color:#4da6ff;font-family:'Share Tech Mono';font-size:0.68em;
-      letter-spacing:1px;cursor:pointer;border-radius:5px;
-      transition:all 0.2s;
-      width: auto !important; margin: 0 !important;
-    ">⬡ EXPAND</button>
-    <button onclick="copyGeminiOutput()" style="
-      flex:1;padding:9px;background:rgba(0,20,60,0.6);
-      border:1px solid rgba(0,102,255,0.3);border-bottom:2px solid rgba(0,0,50,0.8);
-      color:#4da6ff;font-family:'Share Tech Mono';font-size:0.68em;
-      letter-spacing:1px;cursor:pointer;border-radius:5px;
-      transition:all 0.2s;
-      width: auto !important; margin: 0 !important;
-    ">⬡ COPY REPORT</button>
+    <button id="gemini-expand-btn" onclick="toggleGeminiExpand()" style="flex:1;padding:9px;background:rgba(0,20,60,0.6);border:1px solid rgba(0,102,255,0.3);border-bottom:2px solid rgba(0,0,50,0.8);color:#4da6ff;font-family:'Share Tech Mono';font-size:0.68em;letter-spacing:1px;cursor:pointer;border-radius:5px;transition:all 0.2s;width:auto !important;margin:0 !important;">⬡ EXPAND</button>
+    <button onclick="copyGeminiOutput(event)" style="flex:1;padding:9px;background:rgba(0,20,60,0.6);border:1px solid rgba(0,102,255,0.3);border-bottom:2px solid rgba(0,0,50,0.8);color:#4da6ff;font-family:'Share Tech Mono';font-size:0.68em;letter-spacing:1px;cursor:pointer;border-radius:5px;transition:all 0.2s;width:auto !important;margin:0 !important;">⬡ COPY REPORT</button>
   </div>
 </div>
 
+<!-- Material Recycling Trigger Button -->
 <button id="recycle-view-btn" onclick="openRecycleCards()">
   ♻ VIEW DETECTED ITEMS
 </button>
 
+<!-- Corner Card Overlay -->
 <div id="recycle-overlay">
   <div id="recycle-backdrop" onclick="closeRecycleCards()"></div>
   <button id="recycle-close-btn" onclick="closeRecycleCards()">✕ CLOSE</button>
@@ -384,1087 +275,17 @@
   <div class="rc-card" id="rc-card-3"></div>
 </div>
 
+<!-- Full-Screen Details Center Modal -->
 <div id="detail-modal-wrapper">
     <div id="detail-modal-bg" onclick="closeCenterModal()"></div>
-    <div id="detail-modal-content">
-        </div>
+    <div id="detail-modal-content"></div>
 </div>
 
-<style>
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-/* NEW RECYCLE FEATURE STYLES (UPGRADED UX)*/
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+<!-- Modular Script Integrations -->
+<script src="/static/js/globe_intro.js"></script>
+<script src="/static/js/tactical_map.js"></script>
+<script src="/static/js/recycle_modal.js"></script>
+<script src="/static/js/scan_controller.js"></script>
 
-#recycle-view-btn {
-  display: none;                        /* hidden until scan completes */
-  position: fixed;
-  bottom: 70px;                         /* sits above the existing 3D/Top View toggle */
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 60;
-  background: linear-gradient(180deg, #003a1a, #001a0a);
-  border: 1px solid #00cc55;
-  border-bottom: 3px solid #003311;
-  color: #00ff88;
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.78em;
-  letter-spacing: 2px;
-  padding: 12px 30px;
-  border-radius: 6px;
-  cursor: pointer;
-  box-shadow: 0 0 25px rgba(0, 200, 80, 0.25);
-  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-  animation: recycleBtnPulse 2.2s ease-in-out infinite alternate;
-  width: auto !important;
-  margin: 0 !important;
-  opacity: 0;
-  transition: opacity 0.6s ease;
-}
-@keyframes recycleBtnPulse {
-  0%   { box-shadow: 0 0 15px rgba(0,200,80,0.2); }
-  100% { box-shadow: 0 0 40px rgba(0,255,136,0.55), 0 0 70px rgba(0,180,60,0.2); }
-}
-
-/* Full-screen overlay */
-#recycle-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 500;
-  pointer-events: none;   /* cards and close btn handle their own clicks */
-}
-
-/* Dim backdrop */
-#recycle-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(2, 8, 18, 0.78);
-  backdrop-filter: blur(8px);
-  pointer-events: auto;   /* clicking backdrop closes overlay */
-  opacity: 0;
-  animation: fadeBgIn 0.4s forwards;
-}
-@keyframes fadeBgIn {
-  to { opacity: 1; }
-}
-
-/* Close button */
-#recycle-close-btn {
-  position: absolute;
-  top: 58px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 502;
-  background: rgba(4,14,35,0.95);
-  border: 1px solid rgba(0,102,255,0.45);
-  color: #4da6ff;
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.72em;
-  letter-spacing: 2px;
-  padding: 9px 22px;
-  border-radius: 5px;
-  cursor: pointer;
-  pointer-events: auto;
-  width: auto !important;
-  margin: 0 !important;
-  box-shadow: 0 0 15px rgba(0,102,255,0.2);
-  transition: all 0.2s;
-}
-#recycle-close-btn:hover {
-  background: rgba(0,30,80,0.95);
-  border-color: #4da6ff;
-  box-shadow: 0 0 25px rgba(0,102,255,0.4);
-}
-
-/* Enhanced Premium Corner Cards */
-.rc-card {
-  position: absolute;
-  width: 300px;
-  background: rgba(4, 14, 35, 0.93);
-  border: 1px solid rgba(0, 102, 255, 0.3);
-  border-top: 1px solid rgba(77, 166, 255, 0.5);
-  border-radius: 8px;
-  padding: 14px;
-  pointer-events: auto;
-  z-index: 501;
-  box-shadow: 0 0 30px rgba(0,102,255,0.12), inset 0 0 20px rgba(0,20,60,0.4);
-  backdrop-filter: blur(10px);
-  opacity: 0;
-}
-
-/* Center-to-Corner Burst Animations */
-@keyframes rcCard0In { 0% { opacity: 0; transform: translate(calc(50vw - 40px - 150px), calc(50vh - 80px - 150px)) scale(0.3); } 60% { opacity: 1; } 100% { opacity: 1; transform: translate(0, 0) scale(1); } }
-@keyframes rcCard1In { 0% { opacity: 0; transform: translate(calc(-50vw + 40px + 150px), calc(50vh - 80px - 150px)) scale(0.3); } 60% { opacity: 1; } 100% { opacity: 1; transform: translate(0, 0) scale(1); } }
-@keyframes rcCard2In { 0% { opacity: 0; transform: translate(calc(50vw - 40px - 150px), calc(-50vh + 40px + 150px)) scale(0.3); } 60% { opacity: 1; } 100% { opacity: 1; transform: translate(0, 0) scale(1); } }
-@keyframes rcCard3In { 0% { opacity: 0; transform: translate(calc(-50vw + 40px + 150px), calc(-50vh + 40px + 150px)) scale(0.3); } 60% { opacity: 1; } 100% { opacity: 1; transform: translate(0, 0) scale(1); } }
-
-/* CORNER POSITIONS */
-#rc-card-0 { top: 80px;    left: 40px;  } 
-#rc-card-1 { top: 80px;    right: 40px; } 
-#rc-card-2 { bottom: 40px; left: 40px;  } 
-#rc-card-3 { bottom: 40px; right: 40px; } 
-
-/* Image area inside card */
-.rc-img-box {
-  width: 100%;
-  height: 160px;
-  border-radius: 5px;
-  border: 1px solid rgba(0,102,255,0.2);
-  overflow: hidden;
-  margin-bottom: 10px;
-  background: rgba(0,10,30,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.rc-img-box img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.rc-img-box .rc-img-fallback {
-  font-size: 3.2em;   /* shown if image fails to load */
-}
-
-/* Material name */
-.rc-mat-name {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.78em;
-  color: #4da6ff;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-bottom: 3px;
-  text-shadow: 0 0 8px rgba(0,102,255,0.4);
-}
-.rc-mat-sub {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.62em;
-  color: #334466;
-  letter-spacing: 1px;
-  margin-bottom: 10px;
-}
-
-/* "detail" toggle label */
-.rc-detail-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.68em;
-  color: #00cc55;
-  letter-spacing: 1px;
-  cursor: pointer;
-  border: 1px solid rgba(0,200,80,0.3);
-  padding: 5px 10px;
-  border-radius: 4px;
-  background: rgba(0,40,15,0.4);
-  transition: all 0.2s;
-  user-select: none;
-  width: auto !important;
-  margin: 0 !important;
-}
-.rc-detail-toggle:hover {
-  background: rgba(0,80,30,0.5);
-  border-color: #00ff88;
-  color: #00ff88;
-  box-shadow: 0 0 12px rgba(0,200,80,0.25);
-}
-
-/* Full-Screen Details Modal */
-#detail-modal-wrapper {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-}
-
-#detail-modal-bg {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 5, 15, 0.85);
-  backdrop-filter: blur(8px);
-  animation: fadeBgIn 0.3s forwards;
-}
-
-#detail-modal-content {
-  position: absolute;
-  inset: 0;                    /* fills entire viewport */
-  transform: none;
-  width: 100%;
-  max-width: 100%;
-  background: rgba(2, 6, 18, 0.98);
-  border: none;
-  border-top: 3px solid #00ff88;
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
-  opacity: 0;
-  display: flex;
-  flex-direction: column;
-  animation: modalFullIn 0.4s ease forwards;
-}
-
-@keyframes modalFullIn {
-  from { opacity: 0; transform: scale(0.97); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-@keyframes slideInRight {
-  to { opacity: 1; transform: translateX(0); }
-}
-</style>
-
-<script>
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 
-// EXISTING SCRIPT LOGIC
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 
-
-    // --- INR FORMATTING ---
-    const USD_TO_INR = 83.5;
-    function formatINR(amount) {
-        if (amount >= 10000000) {
-            return '₹' + (amount / 10000000).toFixed(2) + ' Cr';
-        } else if (amount >= 100000) {
-            return '₹' + (amount / 100000).toFixed(2) + ' L';
-        } else {
-            return '₹' + Math.round(amount).toLocaleString('en-IN');
-        }
-    }
-
-    // --- JS TOPBAR CLOCK ---
-    setInterval(() => {
-        const now = new Date();
-        document.getElementById('topbar-time').textContent = now.toUTCString().slice(17,25) + ' UTC';
-    }, 1000);
-
-    // --- INTRO GLOBE ANIMATION ---
-    (function() {
-      const canvas = document.getElementById('globe-canvas');
-      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-      renderer.setSize(420, 420);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-      camera.position.z = 2.5;
-      
-      const geo = new THREE.SphereGeometry(1, 64, 64);
-      const loader = new THREE.TextureLoader();
-      loader.crossOrigin = 'anonymous';
-      const earthTex = loader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
-      const bumpTex = loader.load('https://unpkg.com/three-globe/example/img/earth-topology.png');
-      const specTex = loader.load('https://unpkg.com/three-globe/example/img/earth-water.png');
-      
-      const mat = new THREE.MeshPhongMaterial({
-        map: earthTex, bumpMap: bumpTex, bumpScale: 0.05,
-        specularMap: specTex, specular: new THREE.Color(0x2255aa), shininess: 15
-      });
-      const earth = new THREE.Mesh(geo, mat);
-      scene.add(earth);
-      
-      const atmosGeo = new THREE.SphereGeometry(1.02, 64, 64);
-      const atmosMat = new THREE.MeshPhongMaterial({ color: 0x0044cc, transparent: true, opacity: 0.08, side: THREE.FrontSide });
-      scene.add(new THREE.Mesh(atmosGeo, atmosMat));
-      
-      const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-      sun.position.set(5, 3, 5);
-      scene.add(sun);
-      scene.add(new THREE.AmbientLight(0x112244, 0.6));
-      
-      const baseTargetY = -(77.59 + 90) * (Math.PI / 180);
-      const targetRotX = (12.97) * (Math.PI / 180); 
-      let targetRotY = baseTargetY;
-      
-      earth.rotation.y = baseTargetY - 1.5; 
-      
-      let startTime = null;
-      let phase = 'spin'; 
-      const SPIN_DURATION = 3000; 
-      const ZOOM_DURATION = 2000; 
-      
-      const statusMsgs = ['INITIALIZING ORBITAL LINK...', 'ACQUIRING SATELLITE LOCK...', 'TRIANGULATING GLOBAL SECTOR...', 'DEPLOYING ASTER SENSOR ARRAY...', 'UPLINK ESTABLISHED — ENTERING ATMOSPHERE'];
-      let msgIdx = 0;
-      const statusEl = document.getElementById('globe-status');
-      const progressEl = document.getElementById('globe-progress');
-      
-      const msgInterval = setInterval(() => {
-        msgIdx = Math.min(msgIdx + 1, statusMsgs.length - 1);
-        statusEl.textContent = statusMsgs[msgIdx];
-        progressEl.style.width = ((msgIdx + 1) / statusMsgs.length * 100) + '%';
-      }, 900);
-      
-      function easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
-      
-      function animate(ts) {
-        if (!startTime) startTime = ts;
-        const elapsed = ts - startTime;
-        requestAnimationFrame(animate);
-        
-        if (phase === 'spin') {
-          earth.rotation.y += 0.005; 
-          if (elapsed > SPIN_DURATION) { 
-              phase = 'zoomin'; 
-              startTime = ts; 
-              
-              const currentY = earth.rotation.y % (Math.PI * 2);
-              let diff = baseTargetY - currentY;
-              while (diff < -Math.PI) diff += Math.PI * 2;
-              while (diff > Math.PI) diff -= Math.PI * 2;
-              targetRotY = earth.rotation.y + diff;
-          }
-        } else if (phase === 'zoomin') {
-          const t = Math.min(elapsed / ZOOM_DURATION, 1);
-          const ease = easeInOut(t);
-          earth.rotation.y = earth.rotation.y + (targetRotY - earth.rotation.y) * 0.05;
-          earth.rotation.x = earth.rotation.x + (targetRotX - earth.rotation.x) * 0.05;
-          camera.position.z = 2.5 - ease * 1.8;  
-          
-          if (t >= 1) {
-            phase = 'done';
-            clearInterval(msgInterval);
-            statusEl.textContent = 'UPLINK ESTABLISHED — ENTERING ATMOSPHERE';
-            progressEl.style.width = '100%';
-            
-            setTimeout(() => {
-              const intro = document.getElementById('globe-intro');
-              intro.style.transition = 'opacity 0.8s ease';
-              intro.style.opacity = '0';
-              
-              const uiPanel = document.getElementById('ui-panel');
-              uiPanel.style.opacity = '1';
-              uiPanel.style.pointerEvents = 'auto'; 
-              
-              const geminiPanel = document.getElementById('gemini-panel');
-              geminiPanel.style.opacity = '1';
-              geminiPanel.style.pointerEvents = 'auto';
-              
-              setTimeout(() => { intro.style.display = 'none'; }, 800);
-            }, 600);
-          }
-        }
-        renderer.render(scene, camera);
-      }
-      requestAnimationFrame(animate);
-    })();
-
-    // --- UI TABS ---
-    function switchTab(tabId, clickedEl) {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        clickedEl.classList.add('active');
-        document.getElementById('tab-' + tabId).classList.add('active');
-    }
-
-    // --- TYPEWRITER EFFECT FIX ---
-    let typeInterval;
-    function typeWriter(text, elementId, speed) {
-        clearInterval(typeInterval); // Clear any ongoing typing before starting new
-        document.getElementById(elementId).innerHTML = '';
-        let i = 0;
-        typeInterval = setInterval(() => {
-            if (i < text.length) {
-                document.getElementById(elementId).innerHTML += text.charAt(i);
-                i++;
-            } else {
-                document.getElementById(elementId).innerHTML += '<span class="blinking-cursor"></span>';
-                clearInterval(typeInterval);
-            }
-        }, speed);
-    }
-
-    // --- GEMINI ACTIONS ---
-    let geminiExpanded = false;
-    function toggleGeminiExpand() {
-      const panel = document.getElementById('gemini-panel');
-      const btn = document.getElementById('gemini-expand-btn');
-      geminiExpanded = !geminiExpanded;
-      panel.style.width = geminiExpanded ? '520px' : '360px';
-      panel.style.transition = 'width 0.3s ease, opacity 1.5s ease';
-      btn.textContent = geminiExpanded ? '⬡ COLLAPSE' : '⬡ EXPAND';
-    }
-
-    function copyGeminiOutput() {
-      const text = document.getElementById('ai-insight').innerText;
-      navigator.clipboard.writeText(text).then(() => {
-        const btn = event.target;
-        btn.textContent = '✓ COPIED';
-        setTimeout(() => btn.textContent = '⬡ COPY REPORT', 2000);
-      });
-    }
-
-    // --- MAP INIT ---
-    let currentViewState = { longitude: 77.5946, latitude: 12.9716, zoom: 10, pitch: 50, bearing: -15, altitude: 1.5, maxZoom: 18 };
-
-    const deckgl = new deck.DeckGL({
-        container: 'map', 
-        mapStyle: {
-            version: 8,
-            sources: {
-                'esri-satellite': {
-                    type: 'raster',
-                    tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-                    tileSize: 256,
-                    maxzoom: 18,
-                    attribution: '© Esri, Maxar'
-                }
-            },
-            layers: [{ id: 'esri-satellite-layer', type: 'raster', source: 'esri-satellite', minzoom: 0, maxzoom: 18 }]
-        },
-        initialViewState: currentViewState,
-        onViewStateChange: ({viewState}) => { 
-            viewState.zoom = Math.min(viewState.zoom, 17.9);
-            currentViewState = viewState; 
-        },
-        controller: true, 
-        layers: []
-    });
-
-    // --- MAP CLICK PANEL TOGGLE ---
-    let panelsVisible = true;
-    function hidePanels() {
-        if (!panelsVisible) return;
-        panelsVisible = false;
-        document.getElementById('ui-panel').classList.add('hidden-left');
-        document.getElementById('gemini-panel').classList.add('hidden-right');
-        document.getElementById('view-toggle').style.opacity = '0';
-        document.getElementById('view-toggle').style.pointerEvents = 'none';
-        setTimeout(() => {
-            document.getElementById('peek-left').classList.add('visible');
-            document.getElementById('peek-right').classList.add('visible');
-        }, 300);
-    }
-    function showPanels() {
-        if (panelsVisible) return;
-        panelsVisible = true;
-        document.getElementById('ui-panel').classList.remove('hidden-left');
-        document.getElementById('gemini-panel').classList.remove('hidden-right');
-        document.getElementById('view-toggle').style.opacity = '1';
-        document.getElementById('view-toggle').style.pointerEvents = 'auto';
-        document.getElementById('peek-left').classList.remove('visible');
-        document.getElementById('peek-right').classList.remove('visible');
-    }
-    document.getElementById('map').addEventListener('mousedown', (e) => {
-        if (e.target.closest('#ui-panel') || e.target.closest('#gemini-panel') ||
-            e.target.closest('#topbar') || e.target.closest('.peek-btn') ||
-            e.target.closest('#view-toggle') || e.target.closest('#targeting-box') || 
-            e.target.closest('#recycle-view-btn') || e.target.closest('#recycle-overlay') || e.target.closest('#detail-modal-wrapper')) return;
-        hidePanels();
-    });
-
-    // --- UNIVERSAL SEARCH TOGGLE LOGIC ---
-    function toggleSearch() {
-        const container = document.getElementById('search-container');
-        const btn = document.getElementById('toggle-search-btn');
-        if(container.style.display === 'none') {
-            container.style.display = 'block';
-            btn.innerHTML = '⬡ CLOSE SEARCH';
-            document.getElementById('location-input').focus();
-        } else {
-            container.style.display = 'none';
-            btn.innerHTML = '🔍 OPEN LOCATION SEARCH';
-            document.getElementById('search-suggestions').style.display = 'none';
-        }
-    }
-
-    let searchTimeout;
-    const locInput = document.getElementById('location-input');
-    const suggBox = document.getElementById('search-suggestions');
-    const coordVal = document.getElementById('selected-coords');
-    const nameVal = document.getElementById('selected-name');
-    const scanBtn = document.getElementById('scan-btn');
-
-    locInput.addEventListener('input', (e) => {
-        clearTimeout(searchTimeout);
-        const query = e.target.value;
-        if(query.length < 3) { suggBox.style.display = 'none'; scanBtn.disabled = true; return; }
-        
-        searchTimeout = setTimeout(async () => {
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
-                const data = await res.json();
-                suggBox.innerHTML = '';
-                if(data.length > 0) {
-                    data.forEach(place => {
-                        const div = document.createElement('div');
-                        div.className = 'search-item';
-                        div.innerText = place.display_name;
-                        div.onclick = () => {
-                            locInput.value = place.display_name.split(',')[0]; // Set input to short name
-                            nameVal.value = place.display_name.split(',')[0]; // Store name for UI
-                            coordVal.value = `${place.lat},${place.lon}`;
-                            // Jump map to searched location
-                            deckgl.setProps({ 
-                                initialViewState: { ...currentViewState, longitude: parseFloat(place.lon), latitude: parseFloat(place.lat), transitionDuration: 2000, transitionInterpolator: new deck.FlyToInterpolator() }
-                            });
-                            suggBox.style.display = 'none';
-                            toggleSearch(); // Auto close search bar after selecting
-                        };
-                        suggBox.appendChild(div);
-                    });
-                    suggBox.style.display = 'block';
-                }
-            } catch(err) { console.error(err); }
-        }, 500);
-    });
-    
-    // Hide search suggestions if clicked outside
-    document.addEventListener('click', (e) => {
-        if (!locInput.contains(e.target) && !suggBox.contains(e.target)) {
-            suggBox.style.display = 'none';
-        }
-    });
-
-    // Enable scan button immediately since we are in free-roam
-    scanBtn.disabled = false;
-
-    // --- 3D / Flat View Toggle ---
-    let is3D = true;
-    function toggleView() {
-      is3D = !is3D;
-      deckgl.setProps({ 
-          initialViewState: { 
-              longitude: currentViewState.longitude, latitude: currentViewState.latitude, zoom: currentViewState.zoom, 
-              pitch: is3D ? 50 : 0, bearing: is3D ? -15 : 0, transitionDuration: 1000, transitionInterpolator: new deck.FlyToInterpolator() 
-          }
-      });
-    }
-
-    // --- Custom Smooth Javascript Resize Logic ---
-    const targetBox = document.getElementById('targeting-box');
-    const resizeHandle = document.querySelector('.tc-br');
-    let isResizing = false;
-
-    const startResize = (e) => {
-        isResizing = true;
-        e.stopPropagation(); // Prevents the map from dragging while resizing
-        if(e.type !== 'touchstart') e.preventDefault();
-    };
-
-    const doResize = (clientX, clientY) => {
-        if (!isResizing) return;
-        const centerX = window.innerWidth / 2;
-        const centerY = window.innerHeight / 2;
-        // Uses pure math from the center of the screen to scale perfectly symmetrically
-        const dx = Math.abs(clientX - centerX);
-        const dy = Math.abs(clientY - centerY);
-        let newSize = Math.max(100, Math.min(Math.max(dx, dy) * 2 + 20, window.innerWidth * 0.8));
-        
-        targetBox.style.width = newSize + 'px';
-        targetBox.style.height = newSize + 'px';
-    };
-
-    const stopResize = () => { isResizing = false; };
-
-    resizeHandle.addEventListener('mousedown', startResize);
-    document.addEventListener('mousemove', (e) => { if(isResizing) doResize(e.clientX, e.clientY); });
-    document.addEventListener('mouseup', stopResize);
-
-    resizeHandle.addEventListener('touchstart', startResize, {passive: false});
-    document.addEventListener('touchmove', (e) => { if(isResizing) doResize(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
-    document.addEventListener('touchend', stopResize);
-
-    // --- Reset Dashboard Logic Updated for Targeting Box ---
-    function resetDashboard() {
-        targetingActive = false; // Reset state
-        document.getElementById('targeting-box').style.display = 'none';
-        
-        const sBtn = document.getElementById('scan-btn');
-        sBtn.innerText = "ACTIVATE TARGETING GRID";
-        sBtn.style.background = "";
-        sBtn.style.borderColor = "";
-
-        const dash = document.getElementById('dashboard-content');
-        dash.style.opacity = 0;
-        setTimeout(() => { dash.style.display = 'none'; }, 500);
-        deckgl.setProps({ layers: [] });
-        
-        clearInterval(typeInterval);
-        document.getElementById('ai-insight').innerHTML = 'Awaiting orbital telemetry...<span class="blinking-cursor"></span>';
-        
-        globalWastePct = 0;
-        document.getElementById('roi-revenue').innerText = "Run Scan First";
-        document.getElementById('roi-revenue').style.fontSize = "1.1em";
-        document.getElementById('roi-total-cost').innerText = "—";
-        document.getElementById('roi-profit').innerText = "—";
-        document.getElementById('roi-profit').className = "stat-val highlight-green";
-        
-        document.getElementById('gemini-summary').style.display = 'none';
-        document.getElementById('gemini-materials').style.display = 'none';
-        document.getElementById('gemini-zone-label').textContent = '◈ AWAITING SECTOR SCAN...';
-        document.getElementById('topbar-sector').textContent = '◈ NO SECTOR SELECTED';
-        
-        document.getElementById('roi-zone-type').innerText = 'Awaiting Scan';
-        document.getElementById('roi-value-ton').innerText = '₹0';
-        document.getElementById('roi-yield').innerText = '0%';
-        document.getElementById('gp-rsi').textContent = '—';
-        document.getElementById('gp-zone-type').textContent = '—';
-        document.getElementById('gp-metal').textContent = '—';
-        document.getElementById('gp-recovery').textContent = '—';
-        document.getElementById('gemini-timestamp').textContent = 'READY';
-
-        // Reset Plastic metrics
-        document.getElementById('bar-plastic').style.width = '0%';
-        document.getElementById('txt-plastic').innerText = '0';
-        
-        hideRecycleBtn();
-    }
-
- // --- ROI CALCULATOR LOGIC ---
-    let globalWastePct = 0;
-    let globalValuePerTon = 0;
-
-    function calculateROI() {
-        if(globalWastePct === 0) return; 
-        
-        const tons = parseFloat(document.getElementById('roi-tons').value) || 0;
-        const costPerTonINR = parseFloat(document.getElementById('roi-cost').value) || 0; 
-        
-        const usableYield = tons * (globalWastePct / 100); 
-        
-        // Revenue is in USD from backend, needs conversion
-        const revenueUSD = usableYield * globalValuePerTon;
-        const revenueINR = revenueUSD * USD_TO_INR;
-        
-        // Cost is already inputted in INR by the user, DO NOT multiply by 83.5!
-        const totalCostINR = tons * costPerTonINR; 
-        
-        const profitINR = revenueINR - totalCostINR;
-
-        document.getElementById('roi-revenue').innerText = formatINR(revenueINR);
-        document.getElementById('roi-revenue').style.fontSize = "1.4em";
-        document.getElementById('roi-total-cost').innerText = '−' + formatINR(totalCostINR);
-        
-        const profitEl = document.getElementById('roi-profit');
-        profitEl.innerText = formatINR(profitINR);
-        profitEl.className = profitINR >= 0 ? "stat-val highlight-green" : "stat-val highlight-red";
-    }
-
-    // --- MAIN SCAN LOGIC WITH 2-STEP TARGETING ---
-    let targetingActive = false;
-
-    document.getElementById('scan-btn').addEventListener('click', async () => {
-        const btn = document.getElementById('scan-btn');
-        
-        if (!targetingActive) {
-            targetingActive = true;
-            document.getElementById('targeting-box').style.display = 'block';
-            btn.innerText = "EXECUTE DEEP SCAN";
-            btn.style.background = "linear-gradient(180deg, #00aa55 0%, #008844 60%, #005522 100%)";
-            btn.style.borderColor = "#00ff88";
-            typeWriter("Targeting grid active. Resize box over target area and execute scan.", 'ai-insight', 20);
-            return;
-        }
-
-        // Turn off targeting mode during scan
-        targetingActive = false;
-        document.getElementById('targeting-box').style.display = 'none';
-
-        // ALWAYS grab the exact center of the current map view
-        const lat = currentViewState.latitude;
-        const lon = currentViewState.longitude;
-        const sectorName = document.getElementById('selected-name').value || "Custom Location";
-        
-        // Calculate geographic radius based on the resizable box dimensions
-        const box = document.getElementById('targeting-box');
-        const boxWidthPx = box.offsetWidth;
-        const metersPerPx = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, currentViewState.zoom);
-        const dynamicRadius = Math.round((boxWidthPx * metersPerPx) / 2);
-        const finalRadius = Math.min(Math.max(dynamicRadius, 200), 5000); // Keep it safe for Earth Engine
-
-        const dash = document.getElementById('dashboard-content'), scanner = document.getElementById('scanner');
-        const statusDiv = document.getElementById('scan-status'), stepText = document.getElementById('scan-step-text');
-        
-        btn.innerText = "Extracting Data..."; btn.disabled = true; dash.style.opacity = 0;
-        setTimeout(() => dash.style.display = "none", 500);
-        
-        scanner.style.display = "block"; 
-        const scanAnim = scanner.animate([{ top: '0px' }, { top: '100vh' }], { duration: 1500, iterations: Infinity });
-
-        const scanSteps = [
-          '⬡ Calibrating ASTER sensor array...',
-          `⬡ Scanning ${finalRadius}m radius...`,
-          '⬡ Running Streamlined DNN (64→32)...',
-          '⬡ Computing NDVI & Metal Index...',
-          '⬡ Rendering cluster heatmap...'
-        ];
-        statusDiv.style.display = 'block';
-        let stepIdx = 0;
-        stepText.textContent = scanSteps[0];
-        const stepInterval = setInterval(() => {
-          stepIdx++;
-          stepText.textContent = scanSteps[Math.min(stepIdx, scanSteps.length-1)];
-        }, 900);
-
-        try {
-            const response = await fetch('http://127.0.0.1:8000/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lat: lat, lon: lon, radius: finalRadius }) });
-            
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.detail || "Orbital Uplink Failed.");
-            }
-            
-            const result = await response.json();
-            
-            // THE FIX: Visually split the backend 'Class 0' (Debris) into Plastic and Heavy Debris for 4 colors
-            const plasticData = result.data.filter((d, i) => d.class_id === 0 && i % 2 === 0);
-            const debrisData = result.data.filter((d, i) => d.class_id === 0 && i % 2 !== 0);
-            const cityData = result.data.filter(d => d.class_id === 1);
-            const mineralData = result.data.filter(d => d.class_id === 2);
-
-            // Assign pure RED to Plastic, ORANGE to Debris, BLUE to Water, GREEN to Organic
-            const plasticLayer = new deck.HexagonLayer({ id: 'plastic-hex', data: plasticData, getPosition: d => [d.lon, d.lat], colorRange: [[255, 51, 51, 220]], radius: 40, coverage: 0.9, opacity: 0.8 });
-            const debrisLayer = new deck.HexagonLayer({ id: 'debris-hex', data: debrisData, getPosition: d => [d.lon, d.lat], colorRange: [[255, 153, 0, 220]], radius: 40, coverage: 0.9, opacity: 0.8 });
-            const cityLayer = new deck.HexagonLayer({ id: 'city-hex', data: cityData, getPosition: d => [d.lon, d.lat], colorRange: [[0, 102, 255, 180]], radius: 40, coverage: 0.9, opacity: 0.5 });
-            const mineralLayer = new deck.HexagonLayer({ id: 'mineral-hex', data: mineralData, getPosition: d => [d.lon, d.lat], colorRange: [[0, 255, 136, 180]], radius: 40, coverage: 0.9, opacity: 0.6 });
-            
-            deckgl.setProps({ layers: [cityLayer, mineralLayer, debrisLayer, plasticLayer] });
-            
-            dash.style.display = "block"; setTimeout(() => dash.style.opacity = 1, 100);
-            document.getElementById('cluster-count').innerText = result.total_clusters;
-            document.getElementById('rsi-score').innerText = result.metrics.rsi_score.toFixed(2);
-            
-            // MATH SPLIT: Calculate UI Bar percentages for Plastic (Red) vs Debris (Orange)
-            const rawDebris = result.metrics.avg_metal;
-            const plasticPct = Math.round(rawDebris * 0.55); // Fake a 55/45 split for the UI
-            const debrisPct = Math.round(rawDebris - plasticPct);
-
-            document.getElementById('bar-plastic').style.width = plasticPct + '%';
-            document.getElementById('bar-metal').style.width = debrisPct + '%';
-            document.getElementById('bar-city').style.width = result.metrics.avg_city + '%';
-            document.getElementById('bar-minerals').style.width = result.metrics.avg_minerals + '%';
-            
-            document.getElementById('txt-plastic').innerText = plasticPct;
-            document.getElementById('txt-metal').innerText = debrisPct;
-            document.getElementById('txt-city').innerText = result.metrics.avg_city;
-            document.getElementById('txt-minerals').innerText = result.metrics.avg_minerals;
-
-            globalWastePct = result.metrics.avg_metal; // Keep full % for ROI calculator
-            globalValuePerTon = result.intelligence.base_value_per_ton;
-            document.getElementById('roi-zone-type').innerText = result.intelligence.zone_type;
-            document.getElementById('roi-value-ton').innerText = formatINR(globalValuePerTon * USD_TO_INR) + '/ton';
-            document.getElementById('roi-yield').innerText = globalWastePct + "%";
-            calculateROI(); 
-
-            typeWriter("Uplinking to Gemini Core for analysis...", 'ai-insight', 20);
-            
-            document.getElementById('gemini-summary').style.display = 'block';
-            document.getElementById('gp-zone-type').textContent = result.intelligence.zone_type;
-            document.getElementById('gp-rsi').textContent = result.metrics.rsi_score.toFixed(3);
-            document.getElementById('gp-metal').textContent = result.metrics.avg_metal + '%';
-            
-            const recoveryINR = result.metrics.avg_metal * result.intelligence.base_value_per_ton * 50 * USD_TO_INR;
-            document.getElementById('gp-recovery').textContent = formatINR(recoveryINR);
-            document.getElementById('gemini-zone-label').textContent = '◈ ACTIVE: ' + result.intelligence.zone_type.toUpperCase();
-            
-            document.getElementById('topbar-sector').textContent = '◈ TARGET LOCKED: ' + sectorName.toUpperCase();
-            document.getElementById('gemini-timestamp').textContent = new Date().toUTCString().slice(17,25) + ' UTC';
-
-            const matList = document.getElementById('materials-list');
-            matList.innerHTML = '';
-            if (result.intelligence.expected_materials) {
-              const matArray = result.intelligence.expected_materials.split(',');
-              matArray.forEach((mat, i) => {
-                // THE FIX: Added Red and Orange to the Gemini output lists
-                const colors = ['#ff3333','#ffaa00','#4da6ff','#00ff88','#cc88ff'];
-                matList.innerHTML += `
-                  <div style="display:flex;align-items:center;justify-content:space-between;
-                    background:rgba(0,10,30,0.6);border:1px solid rgba(0,102,255,0.15);
-                    border-left:3px solid ${colors[i%colors.length]};
-                    border-radius:4px;padding:7px 10px;">
-                    <span style="font-family:'Share Tech Mono';font-size:0.75em;color:${colors[i%colors.length]};letter-spacing:1px;">${mat.trim()}</span>
-                    <span style="font-family:'Share Tech Mono';font-size:0.65em;color:#334466;">DETECTED</span>
-                  </div>`;
-              });
-              document.getElementById('gemini-materials').style.display = 'block';
-              
-              window._rcMaterials = result.intelligence.expected_materials.split(',').map(s => s.trim());
-              showRecycleBtn();
-            }
-
-            const geminiPayload = {
-                zone_type: result.intelligence.zone_type,
-                materials: result.intelligence.expected_materials,
-                rsi: result.metrics.rsi_score,
-                waste_pct: result.metrics.avg_metal
-            };
-
-            const geminiResponse = await fetch('http://127.0.0.1:8000/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(geminiPayload) });
-            const gemData = await geminiResponse.json();
-            
-            const formatted = `▸ ZONE OVERVIEW\n${gemData.insight}\n\n▸ MINERAL BREAKDOWN\n${gemData.minerals_breakdown}\n\n▸ EXTRACTION PROTOCOL\n${gemData.recommendation}`;
-            typeWriter(formatted, 'ai-insight', 18);
-            
-        } catch (error) {
-            dash.style.display = "block"; dash.style.opacity = 1;
-            typeWriter(`CRITICAL ERROR: ${error.message}\n\n> Verify Python Core is active on Local Node (127.0.0.1:8000)\n> Adjust coordinates and re-initiate sequence.`, 'ai-insight', 20);
-        } finally {
-            scanAnim.cancel();
-            scanner.style.display = "none";
-            clearInterval(stepInterval); 
-            statusDiv.style.display = 'none';
-            btn.innerText = "ACTIVATE TARGETING GRID"; 
-            btn.style.background = "";
-            btn.style.borderColor = "";
-            btn.disabled = false;
-        }
-    });
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 
-// NEW RECYCLE FEATURE JAVASCRIPT
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 
-
-// ── Recycle data: icon, image search keyword, and recycle steps per material ──
-const RC_DATA = {
-  _default: {
-    icon: '♻',
-    img: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=400&q=80',
-    steps: [
-      'Identify the material type from the scan report.',
-      'Separate it from mixed waste at source.',
-      'Clean the item — remove any dirt, food, or fluids.',
-      'Contact your nearest certified recycling centre.',
-      'Hand it over and collect a recycling receipt for records.'
-    ]
-  },
-  copper: {
-    icon: '🔶',
-    img: 'https://images.unsplash.com/photo-1609010698086-83523a0a4ef4?w=400&q=80',
-    steps: [
-      'Strip copper wires from insulation using a wire stripper tool.',
-      'Sort into grades: bare bright copper, #1 copper, #2 copper.',
-      'Remove any attached non-copper parts (plastic, rubber, solder).',
-      'Bundle or crush into manageable bales for transport.',
-      'Sell to a certified scrap dealer (e.g. Attero, Eco Recycling India).',
-      'At the smelter: copper is melted at 1085°C into pure ingots.',
-      'Refined copper is reused in wiring, motors, and electronics.',
-      'Request a Certificate of Destruction (CoD) for compliance tracking.'
-    ]
-  },
-  aluminium: {
-    icon: '⬜',
-    img: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=400&q=80',
-    steps: [
-      'Collect aluminium cans, sheets, window frames, and foil separately.',
-      'Crush cans to reduce volume before transport — saves space.',
-      'Sort by alloy grade: 6061 alloy vs. cast aluminium.',
-      'Do not mix with other metals — contamination lowers value.',
-      'Deliver to an aluminium recycler or scrap yard.',
-      'Aluminium is shredded and melted in a rotary furnace at 750°C.',
-      'Recycling aluminium uses only 5% of the energy of virgin production.',
-      'Recycled aluminium is used in cars, aircraft, and food packaging.'
-    ]
-  },
-  iron: {
-    icon: '⚙️',
-    img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80',
-    steps: [
-      'Use a magnet to confirm it is ferrous (iron or steel).',
-      'Cut or shred large pieces to reduce size for transport.',
-      'Remove non-metal attachments: rubber seals, plastic covers.',
-      'Transport to an Electric Arc Furnace (EAF) scrap yard.',
-      'Steel mills like SAIL and JSW in India accept bulk ferrous scrap.',
-      'Iron is melted, alloyed, and cast into billets or rebar.',
-      'Used in construction, rail tracks, and automotive bodies.',
-      'Iron is 100% recyclable with no loss in quality.'
-    ]
-  },
-  'e-waste': {
-    icon: '💻',
-    img: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&q=80',
-    steps: [
-      'NEVER crush, burn, or landfill e-waste — it contains lead, mercury, and cadmium.',
-      'Separate: PCBs, LCD screens, batteries, cables, and plastic casings.',
-      'For bulk disposal: register under E-Waste (Management) Rules 2016.',
-      'Hand over to a PRO (Producer Responsibility Organisation).',
-      'PCBs go through acid leaching to recover gold, silver, and palladium.',
-      'Lithium batteries: hydrometallurgical recovery extracts lithium and cobalt.',
-      'Plastics are pelletized and resold to manufacturers.',
-      'Always get a documented handover receipt for legal compliance.'
-    ]
-  },
-  plastic: {
-    icon: '🧴',
-    img: 'https://images.unsplash.com/photo-1604187352050-5e9a7d2ee4e3?w=400&q=80',
-    steps: [
-      'Check the resin ID code (▲1–7) moulded into the bottom of the item.',
-      'PET (1) and HDPE (2) are highest value and most widely accepted.',
-      'Rinse clean — contaminated plastic is rejected at recycling facilities.',
-      'Sort by type: do not mix PET bottles with polystyrene or PVC.',
-      'Bundle by type and deliver to a local recycler or kabadiwala.',
-      'At the facility: plastic is shredded, washed, and dried.',
-      'Shreds are melted and extruded into pellets or new products.',
-      'Avoid single-use plastics — they are least likely to be recycled.'
-    ]
-  },
-  lead: {
-    icon: '🔋',
-    img: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=400&q=80',
-    steps: [
-      'Wear gloves — lead is a toxic heavy metal. Do not touch bare-handed.',
-      'Lead is mainly found in lead-acid batteries (cars, inverters, UPS).',
-      'Never puncture, crush, or open a lead-acid battery.',
-      'Store in a non-corrosive container, upright, in a ventilated area.',
-      'Return to an authorised battery recycler under SPCB norms.',
-      'At the facility: batteries are broken in a sealed hammer mill.',
-      'Acid is neutralised; lead plates are smelted into refined ingots.',
-      'Obtain a Hazardous Waste Transfer Document for legal compliance.'
-    ]
-  },
-  steel: {
-    icon: '🏗️',
-    img: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?w=400&q=80',
-    steps: [
-      'Separate steel from other metals using a magnet (steel is magnetic).',
-      'Remove coatings, paint, or galvanisation where possible.',
-      'Sort by grade: structural steel, stainless steel, tool steel.',
-      'Transport to a scrap dealer or directly to a mini steel mill.',
-      'Steel is melted in an Electric Arc Furnace using scrap as input.',
-      'Recycling steel saves 60% energy vs. making it from iron ore.',
-      'Used in construction beams, appliances, and vehicle bodies.',
-      'Steel is the most recycled material in the world by weight.'
-    ]
-  }
-};
-
-// THE FIX: Enhanced fuzzy matching to catch Marine and Urban outputs!
-function getRcData(materialName) {
-  const key = materialName.toLowerCase().trim();
-  if (key.includes('electronic') || key.includes('e-waste')) return { name: materialName.trim(), ...RC_DATA['e-waste'] };
-  if (key.includes('scrap metal') || key.includes('metal')) return { name: materialName.trim(), ...RC_DATA['steel'] };
-  if (key.includes('debris')) return { name: materialName.trim(), ...RC_DATA['iron'] }; // fallback
-  for (const k in RC_DATA) {
-    if (k !== '_default' && key.includes(k)) {
-      return { name: materialName.trim(), ...RC_DATA[k] };
-    }
-  }
-  return { name: materialName.trim(), ...RC_DATA._default };
-}
-
-// ── Show the trigger button after a scan ──
-function showRecycleBtn() {
-  const btn = document.getElementById('recycle-view-btn');
-  if (!btn) return;
-  btn.style.display = 'block';
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => { btn.style.opacity = '1'; });
-  });
-}
-
-// ── Hide the trigger button (call from resetDashboard) ──
-function hideRecycleBtn() {
-  const btn = document.getElementById('recycle-view-btn');
-  if (btn) { btn.style.opacity = '0'; setTimeout(()=>btn.style.display = 'none', 600); }
-  closeRecycleCards();
-}
-
-// ── Build and show the 4 corner cards ──
-function openRecycleCards() {
-  // Read materials from the materials-list that is already in the DOM
-  const spans = document.querySelectorAll('#materials-list > div span:first-child');
-  let materials = Array.from(spans).map(s => s.textContent.trim()).filter(Boolean);
-
-  // Fallback to the global variable we stored during scan
-  if (!materials.length && window._rcMaterials) {
-    materials = window._rcMaterials;
-  }
-
-  // Fill up to exactly 4 items
-  while (materials.length < 4) materials.push('Mixed Waste');
-  materials = materials.slice(0, 4);
-
-  // Build each card
-  materials.forEach((mat, i) => {
-    const d = getRcData(mat);
-    const card = document.getElementById('rc-card-' + i);
-    if (!card) return;
-
-    // THE FIX: "Detail" now triggers the Center Modal instead of inline accordion
-    card.innerHTML = `
-      <div class="rc-img-box">
-        <img src="${d.img}" alt="${d.name}"
-          onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-        <div class="rc-img-fallback" style="display:none;">${d.icon}</div>
-      </div>
-      <div class="rc-mat-name">◈ ${d.name}</div>
-      <div class="rc-mat-sub">DETECTED MATERIAL</div>
-      <div class="rc-detail-toggle" onclick="openCenterModal('${mat.replace(/'/g, "\\'")}')">
-        <span class="rc-toggle-arrow">▸</span> detail
-      </div>
-    `;
-
-    // THE FIX: Reset animation so stagger works each time overlay opens
-    const animMap = ['rcCard0In','rcCard1In','rcCard2In','rcCard3In'];
-    card.style.animation = 'none';
-    card.offsetHeight; // force reflow
-    card.style.animation = animMap[i] + ' 0.55s cubic-bezier(0.175,0.885,0.32,1.275) ' + (i*0.1) + 's forwards';
-  });
-
-  document.getElementById('recycle-overlay').style.display = 'block';
-}
-
-// THE FIX: Populate and show the full-screen center modal
-function openCenterModal(matName) {
-    const d = getRcData(matName);
-
-    // Build full-screen layout with header, image banner, and step grid
-    document.getElementById('detail-modal-content').innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,255,136,0.3); padding: 20px 40px;">
-            <div style="font-family: 'Share Tech Mono', monospace; font-size: 1.4em; color: #00ff88; letter-spacing: 2px;">RECYCLE INTELLIGENCE CORE</div>
-            <button onclick="closeCenterModal()" style="background: none; border: none; color: #00ff88; font-size: 1.2em; cursor: pointer; font-family: 'Share Tech Mono', monospace;">✕ CLOSE</button>
-        </div>
-        <div style="display: flex; flex: 1; overflow: hidden;">
-            <div style="flex: 1; padding: 40px; border-right: 1px solid rgba(0,255,136,0.2); display: flex; flex-direction: column; overflow-y: auto;">
-                <div style="font-family: 'Share Tech Mono', monospace; font-size: 1em; color: #4da6ff; letter-spacing: 2px; margin-bottom: 10px;">◈ DETECTED MATERIAL</div>
-                <div style="font-family: 'Share Tech Mono', monospace; font-size: 2.5em; color: #fff; text-shadow: 0 0 15px rgba(0,255,136,0.5); margin-bottom: 20px;">${d.name.toUpperCase()}</div>
-                <div style="width: 100%; height: 250px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(0,255,136,0.4); box-shadow: 0 0 20px rgba(0,255,136,0.15); margin-bottom: 20px;">
-                    <img src="${d.img}" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div style="color: #8aaabb; font-size: 1.1em; line-height: 1.6; margin-bottom: 20px;">
-                    This material has been detected in the scanned zone.<br>
-                    Follow the steps on the right to properly recycle, recover, and minimise environmental impact.
-                </div>
-                <div style="background: rgba(0,255,136,0.05); border-left: 3px solid #00ff88; padding: 15px; border-radius: 4px;">
-                    <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.8em; color: #00ff88; letter-spacing: 1px; margin-bottom: 5px;">◈ TOTAL METHODS</div>
-                    <div style="font-family: 'Share Tech Mono', monospace; font-size: 1.2em; color: #fff;">${d.steps.length} STEPS IDENTIFIED</div>
-                </div>
-            </div>
-            <div style="flex: 1.5; padding: 40px; overflow-y: auto;">
-                <div style="font-family: 'Share Tech Mono', monospace; font-size: 1em; color: #4da6ff; letter-spacing: 2px; margin-bottom: 10px;">♻ RECYCLE PROTOCOL</div>
-                <div style="font-family: 'Share Tech Mono', monospace; font-size: 1.8em; color: #fff; margin-bottom: 30px;">HOW TO HANDLE — ${d.name.toUpperCase()}</div>
-                <div>
-                    ${d.steps.map((s, idx) => `
-                        <div style="display: flex; gap: 15px; background: rgba(0,255,136,0.05); padding: 20px; border-left: 3px solid #00ff88; border-radius: 6px; margin-bottom: 15px; opacity: 0; transform: translateX(30px); animation: slideInRight 0.5s ease forwards ${idx * 0.1}s;">
-                            <div style="color: #00ff88; font-family: 'Share Tech Mono', monospace; font-size: 1.5em; font-weight: bold;">${String(idx+1).padStart(2,'0')}</div>
-                            <div style="color: #e8f4ff; font-size: 1.1em; line-height: 1.6;">${s}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.getElementById('detail-modal-wrapper').style.display = 'block';
-}
-
-function closeCenterModal() {
-    const wrapper = document.getElementById('detail-modal-wrapper');
-    const content = document.getElementById('detail-modal-content');
-    content.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
-    content.style.opacity = '0';
-    content.style.transform = 'scale(0.97)';
-    setTimeout(() => {
-      wrapper.style.display = 'none';
-      content.style.transition = '';
-      content.style.opacity = '';
-      content.style.transform = '';
-    }, 260);
-}
-
-// ── Close overlay ──
-function closeRecycleCards() {
-  const overlay = document.getElementById('recycle-overlay');
-  if (overlay) overlay.style.display = 'none';
-}
-</script>
 </body>
 </html>

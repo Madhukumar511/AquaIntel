@@ -3,7 +3,7 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![TensorFlow](https://img.shields.io/badge/Model-TensorFlow_/_Keras_3-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)](https://tensorflow.org/)
 [![Google Earth Engine](https://img.shields.io/badge/Satellite-Google_Earth_Engine-4285F4?style=for-the-badge&logo=googleearth&logoColor=white)](https://earthengine.google.com/)
-[![Tests](https://img.shields.io/badge/Automated_Tests-Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/Madhukumar511/AquaIntel)
+[![Tests](https://img.shields.io/badge/Automated_Tests-12%2F12_Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/Madhukumar511/AquaIntel)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 AquaIntel is a planetary-scale remote sensing and deep learning intelligence platform designed to detect, classify, and track **marine plastic debris**, **ocean water clarity**, and **harmful algal blooms** using multispectral satellite observations.
@@ -63,8 +63,24 @@ flowchart TD
 
 ```text
 AquaIntel/
-├── app.py                      # FastAPI application & REST endpoints
-├── index.html                  # Deck.gl & Mapbox 3D tactical command canvas
+├── app.py                      # Lean FastAPI entrypoint & router mount (< 50 lines)
+├── config.py                   # Sensor band configs, coordinates & metadata
+├── index.html                  # Semantic dashboard markup (< 290 lines)
+├── core/
+│   ├── spectral.py             # Biermann FDI, NDVI, NDWI & atmospheric normalization
+│   ├── earth_engine.py         # Google Earth Engine pixel sampler & ROI buffer
+│   ├── model_runner.py         # Colab Keras model inference & deterministic fallback
+│   └── gemini_analyzer.py      # Gemini ocean cleanup advisory engine
+├── routes/
+│   └── api.py                  # Modular REST API endpoints (/api/scan, /api/analyze, /api/presets)
+├── static/
+│   ├── css/
+│   │   └── dashboard.css       # Tactical styling, animations & responsive layout
+│   └── js/
+│       ├── globe_intro.js      # Three.js 3D orbital globe entrance animation
+│       ├── tactical_map.js     # Mapbox & Deck.gl tactical canvas & targeting box
+│       ├── scan_controller.js  # Multispectral scan trigger, relative API fetch & ROI
+│       └── recycle_modal.js    # Circular recovery guide & full-screen details modal
 ├── omni_brain_global.keras     # Trained TensorFlow/Keras neural network
 ├── omni_scaler_global.pkl      # Trained feature normalizer scaler
 ├── train_200k.py               # Earth Engine distributed data extraction & training script
@@ -75,7 +91,8 @@ AquaIntel/
 │   └── workflows/
 │       └── ci.yml              # Automated GitHub Actions test pipeline
 └── tests/
-    └── test_api.py             # Automated pytest suite (7/7 tests passing)
+    ├── test_api.py             # API route integration tests (9 tests)
+    └── test_spectral.py        # Optical physics & feature engineering tests (3 tests)
 ```
 
 ---
