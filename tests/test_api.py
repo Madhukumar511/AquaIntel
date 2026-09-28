@@ -64,27 +64,45 @@ def test_scan_coordinate_validation():
     res_bad_rad = client.post("/api/scan", json={"lat": 10.0, "lon": 50.0, "radius": -500})
     assert res_bad_rad.status_code == 422
 
-def test_scan_valid_request():
-    """Verify scan returns valid data points and metrics structure."""
-    payload = {
-        "lat": 35.00,
-        "lon": -135.00,
-        "radius": 2000
-    }
-    response = client.post("/api/scan", json=payload)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "success"
-    assert "data" in data
-    assert "metrics" in data
-    assert "intelligence" in data
-    assert isinstance(data["data"], list)
-    assert len(data["data"]) > 0
+def test_scan_unauthenticated_returns_503_without_simulation():
+    """Verify that scan endpoint returns 503 error when Earth Engine is unauthenticated instead of faking a simulation."""
+    from unittest.mock import patch
+    with patch("routes.api.EE_CONNECTED", False):
+        res = client.post("/api/scan", json={"lat": 35.0, "lon": -135.0, "radius": 2000})
+        assert res.status_code == 503
+        assert "Simulation mode has been completely removed" in res.json()["detail"]
 
-    first_point = data["data"][0]
-    assert "lat" in first_point
-    assert "lon" in first_point
-    assert "class_id" in first_point
+def test_scan_valid_request():
+    """Verify scan returns valid data points and 8-constituent metrics when real satellite bands are supplied."""
+    import pandas as pd
+    from unittest.mock import patch
+    mock_satellite_data = pd.DataFrame({
+        "lon": [-135.001, -135.002, -135.003],
+        "lat": [35.001, 35.002, 35.003],
+        "B01": [1200.0, 1100.0, 1150.0],
+        "B02": [1050.0, 950.0, 1000.0],
+        "B3N": [2400.0, 2100.0, 2300.0],
+        "B04": [800.0, 750.0, 780.0],
+        "B05": [600.0, 580.0, 590.0],
+        "B06": [500.0, 480.0, 490.0],
+        "B07": [400.0, 390.0, 395.0],
+        "B08": [300.0, 290.0, 295.0],
+    })
+    with patch("routes.api.EE_CONNECTED", True), \
+         patch("routes.api.sample_satellite_bands", return_value=mock_satellite_data):
+        response = client.post("/api/scan", json={"lat": 35.00, "lon": -135.00, "radius": 2000})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert "data" in data
+        assert "metrics" in data
+        assert "breakdown" in data
+        assert len(data["breakdown"]) == 8
+        assert len(data["data"]) == 3
+        first_point = data["data"][0]
+        assert "lat" in first_point
+        assert "lon" in first_point
+        assert "class_id" in first_point
 
 def test_analyze_gemini_endpoint():
     """Verify automated AI environmental report generation."""

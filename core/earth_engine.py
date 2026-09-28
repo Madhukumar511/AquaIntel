@@ -27,7 +27,7 @@ try:
         except Exception as e_auth:
             logger.warning(f"Earth Engine initialization skipped (offline/demo mode): {e_auth}")
 except ImportError:
-    logger.warning("earthengine-api library not installed. Running in simulation mode.")
+    logger.warning("earthengine-api library not installed. Real satellite feed requires earthengine-api.")
 
 def sample_satellite_bands(lat: float, lon: float, radius: int) -> Optional[pd.DataFrame]:
     """

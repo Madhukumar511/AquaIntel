@@ -13,7 +13,7 @@ from config import (
 )
 from core.earth_engine import EE_CONNECTED, sample_satellite_bands
 from core.spectral import engineer_features
-from core.model_runner import MODEL_LOADED, run_model_inference, generate_simulation_scan
+from core.model_runner import MODEL_LOADED, run_model_inference
 from core.gemini_analyzer import analyze_marine_zone
 
 router = APIRouter()
@@ -77,45 +77,47 @@ def get_model_info() -> Dict[str, Any]:
 @router.post("/api/scan")
 def scan_ocean_surface(request: ScanRequest) -> Dict[str, Any]:
     """
-    Samples multispectral satellite bands, computes spectral indices (FDI, NDVI),
-    and executes neural network inference to detect surface marine debris.
+    Samples real multispectral satellite bands, computes spectral indices (FDI, NDVI),
+    and executes neural network / NNLS inference to detect surface marine debris.
+    Simulation fallback has been completely removed per scientific accuracy requirements.
     """
     context_profile = "Global Marine Environment"
-    materials_expected = "Microplastics, Synthetic Nets, General Ocean Debris, Organic Algae"
+    materials_expected = "PET Bottles, HDPE Crates, Ghost Nets, Microplastics, Oil Sheens, Minerals"
     base_value_per_ton = 250
 
-    # 1. Fallback to simulation if Earth Engine or model is unavailable
-    if not EE_CONNECTED or not MODEL_LOADED:
-        return generate_simulation_scan(request.lat, request.lon, request.radius)
+    if not EE_CONNECTED:
+        raise HTTPException(
+            status_code=503,
+            detail="Live satellite uplink inactive: Google Earth Engine credentials not initialized. Authenticate via 'earthengine authenticate' in terminal or set EE_PROJECT in .env. Simulation mode has been completely removed."
+        )
 
-    try:
-        # 2. Extract satellite pixels from Earth Engine
-        raw_df = sample_satellite_bands(request.lat, request.lon, request.radius)
-        if raw_df is None or raw_df.empty:
-            return generate_simulation_scan(request.lat, request.lon, request.radius)
+    # 1. Extract real satellite pixels from Earth Engine
+    raw_df = sample_satellite_bands(request.lat, request.lon, request.radius)
+    if raw_df is None or raw_df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No satellite imagery available for coordinates ({request.lat}, {request.lon}) within {request.radius}m radius in the orbital catalog. Adjust target coordinates or expand scanning radius."
+        )
 
-        # 3. Engineer spectral features and physics indices
-        features_df = engineer_features(raw_df)
+    # 2. Engineer spectral features and physics indices from real satellite bands
+    features_df = engineer_features(raw_df)
 
-        # 4. Neural network prediction
-        inference_result = run_model_inference(features_df)
+    # 3. Neural network prediction / NNLS physical decomposition
+    inference_result = run_model_inference(features_df)
 
-        return {
-            "status": "success",
-            "total_clusters": inference_result["total_clusters"],
-            "data": inference_result["data"],
-            "metrics": inference_result["metrics"],
-            "breakdown": inference_result.get("breakdown", []),
-            "summary": inference_result.get("summary", {}),
-            "intelligence": {
-                "zone_type": context_profile,
-                "expected_materials": materials_expected,
-                "base_value_per_ton": base_value_per_ton
-            }
+    return {
+        "status": "success",
+        "total_clusters": inference_result["total_clusters"],
+        "data": inference_result["data"],
+        "metrics": inference_result["metrics"],
+        "breakdown": inference_result.get("breakdown", []),
+        "summary": inference_result.get("summary", {}),
+        "intelligence": {
+            "zone_type": context_profile,
+            "expected_materials": materials_expected,
+            "base_value_per_ton": base_value_per_ton
         }
-    except Exception as e:
-        # Safety fallback ensures zero UI downtime
-        return generate_simulation_scan(request.lat, request.lon, request.radius)
+    }
 
 @router.post("/api/analyze")
 def generate_analysis(request: GeminiRequest) -> Dict[str, Any]:
