@@ -18,18 +18,13 @@ try:
     import joblib
     from tensorflow.keras.models import load_model
 
-    precise_model = BASE_DIR / 'omni_brain_precise.keras'
-    precise_scaler = BASE_DIR / 'omni_scaler_precise.pkl'
-    global_model = BASE_DIR / 'omni_brain_global.keras'
-    global_scaler = BASE_DIR / 'omni_scaler_global.pkl'
+    precise_model = BASE_DIR / 'models' / 'omni_brain_precise.keras'
+    precise_scaler = BASE_DIR / 'models' / 'omni_scaler_precise.pkl'
 
-    # Check models/ folder or root BASE_DIR
     target_model = None
     target_scaler = None
-    for m, s in [(precise_model, precise_scaler), (BASE_DIR / 'models' / 'omni_brain_precise.keras', BASE_DIR / 'models' / 'omni_scaler_precise.pkl'), (global_model, global_scaler)]:
-        if m.exists() and s.exists():
-            target_model, target_scaler = m, s
-            break
+    if precise_model.exists() and precise_scaler.exists():
+        target_model, target_scaler = precise_model, precise_scaler
 
     if target_model and target_scaler:
         model_omni = load_model(str(target_model))
