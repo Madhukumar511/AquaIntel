@@ -18,16 +18,26 @@ try:
     import joblib
     from tensorflow.keras.models import load_model
 
-    model_path = BASE_DIR / 'omni_brain_global.keras'
-    scaler_path = BASE_DIR / 'omni_scaler_global.pkl'
+    precise_model = BASE_DIR / 'omni_brain_precise.keras'
+    precise_scaler = BASE_DIR / 'omni_scaler_precise.pkl'
+    global_model = BASE_DIR / 'omni_brain_global.keras'
+    global_scaler = BASE_DIR / 'omni_scaler_global.pkl'
 
-    if model_path.exists() and scaler_path.exists():
-        model_omni = load_model(str(model_path))
-        scaler_omni = joblib.load(str(scaler_path))
+    # Check models/ folder or root BASE_DIR
+    target_model = None
+    target_scaler = None
+    for m, s in [(precise_model, precise_scaler), (BASE_DIR / 'models' / 'omni_brain_precise.keras', BASE_DIR / 'models' / 'omni_scaler_precise.pkl'), (global_model, global_scaler)]:
+        if m.exists() and s.exists():
+            target_model, target_scaler = m, s
+            break
+
+    if target_model and target_scaler:
+        model_omni = load_model(str(target_model))
+        scaler_omni = joblib.load(str(target_scaler))
         MODEL_LOADED = True
-        logger.info("Omni-Brain Keras model and Scaler loaded successfully.")
+        logger.info(f"Keras model loaded successfully from {target_model.name}.")
     else:
-        logger.warning(f"Model artifacts not found at {model_path} or {scaler_path}")
+        logger.warning("Model artifacts not found; using deterministic spectral unmixing fallback.")
 except Exception as e:
     logger.warning(f"TensorFlow/Keras model loading skipped or not available: {e}")
 
