@@ -114,12 +114,10 @@ def run_model_inference(df_features: pd.DataFrame) -> Dict[str, Any]:
         for x in X_samples:
             fdi = x[9]
             ndvi = x[8]
-            if fdi <= 0.005:
+            if fdi <= 0.004:
                 active = [5, 6, 7] if ndvi > 0.15 else [5, 7]
-            elif fdi < 0.035:
-                active = [3, 4, 5, 6, 7] if ndvi > 0.15 else [3, 4, 5, 7]
             else:
-                active = list(range(8))
+                active = list(range(8)) if ndvi > 0.10 else [0, 1, 2, 3, 4, 5, 7]
 
             sub_E = ENDMEMBERS_10D[active]
             sub_a, _ = nnls(sub_E.T, x)
@@ -133,11 +131,11 @@ def run_model_inference(df_features: pd.DataFrame) -> Dict[str, Any]:
             water_abun = float(full_a[7])
 
             # Detect floating marine objects, vessels, and synthetic polymer debris
-            is_debris = (waste_abun >= 0.10) or (fdi >= 0.015 and ndvi < 0.40) or (waste_abun + full_a[4] >= 0.15 and fdi >= 0.008)
+            is_debris = (waste_abun >= 0.08) or (fdi >= 0.008 and ndvi < 0.40) or (waste_abun + full_a[4] >= 0.10 and fdi >= 0.005)
             if is_debris:
                 cid = 0  # 0: Marine Debris / Vessel / Synthetic Polymers
-                conf = max(waste_abun, min(1.0, fdi * 5.0 + waste_abun))
-            elif water_abun >= 0.45 and fdi <= 0.008:
+                conf = max(waste_abun, min(1.0, fdi * 8.0 + waste_abun))
+            elif water_abun >= 0.45 and fdi <= 0.005:
                 cid = 1  # 1: Clean Ocean Water
                 conf = float(water_abun)
             else:

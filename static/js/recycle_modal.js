@@ -190,25 +190,45 @@ function openRecycleCards() {
         detected = window._rcMaterials.map(name => ({ name, percentage: 12.5, color: '#00ff88', category: 'plastic' }));
     }
 
+    const USD_TO_INR = 83.5;
+    const VALUE_MAP = {
+        pet_bottles: 320,
+        hdpe_rigid: 380,
+        nylon_nets: 650,
+        microplastics: 85,
+        oil_sheen: 110,
+        minerals: 40,
+        sargassum: 55
+    };
+
+    // Calculate aggregated telemetry
+    let totalPolymerPct = 0;
+    let totalValueSum = 0;
+    detected.forEach(item => {
+        if (item.category === 'plastic' || item.id === 'pet_bottles' || item.id === 'hdpe_rigid' || item.id === 'nylon_nets' || item.id === 'microplastics') {
+            totalPolymerPct += item.percentage;
+            totalValueSum += item.percentage * (VALUE_MAP[item.id] || 250);
+        }
+    });
+    const blendedRateUSD = totalPolymerPct > 0 ? (totalValueSum / totalPolymerPct) : 250;
+    const blendedRateINR = Math.round(blendedRateUSD * USD_TO_INR);
+
+    // Update telemetry bar elements if present
+    const tStreams = document.getElementById('rc-telem-streams');
+    if (tStreams) tStreams.textContent = `${detected.length} ACTIVE`;
+    const tPoly = document.getElementById('rc-telem-polymers');
+    if (tPoly) tPoly.textContent = `${totalPolymerPct.toFixed(1)}% YIELD`;
+    const tVal = document.getElementById('rc-telem-value');
+    if (tVal) tVal.textContent = `₹${blendedRateINR.toLocaleString('en-IN')}/t`;
+
     if (detected.length === 0) {
         body.innerHTML = `
             <div style="text-align:center; padding:50px 20px; color:#5588aa; font-family:'Share Tech Mono', monospace;">
                 <div style="font-size:3em; margin-bottom:15px; color:#00ff88;">✓</div>
-                <div style="font-size:1.1em; color:#e8f4ff; letter-spacing:2px; margin-bottom:8px;">SECTOR SCANNED — NO SYNTHETIC POLYMERS DETECTED</div>
+                <div style="font-size:1.1em; color:#e8f4ff; letter-spacing:2px; margin-bottom:8px;">SECTOR SCANNED — CLEAR OCEAN WATER</div>
                 <div style="font-size:0.8em; color:#5588aa;">Multispectral optical telemetry confirms clear ocean water with zero harvestable debris clusters.</div>
             </div>`;
     } else {
-        const USD_TO_INR = 83.5;
-        const VALUE_MAP = {
-            pet_bottles: 320,
-            hdpe_rigid: 290,
-            nylon_nets: 350,
-            microplastics: 180,
-            oil_sheen: 0,
-            minerals: 45,
-            sargassum: 55
-        };
-
         let cardsHtml = '<div class="rc-grid">';
         detected.forEach(item => {
             const d = getRcData(item.name || item.id);
@@ -221,9 +241,8 @@ function openRecycleCards() {
             cardsHtml += `
                 <div class="rc-card-item" style="border-left-color: ${item.color || '#00ff88'};">
                     <div class="rc-card-top">
-                        <div class="rc-thumb">
-                            <img src="${d.img}" alt="${d.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                            <div class="rc-img-fallback" style="display:none; font-size:1.8em;">${d.icon}</div>
+                        <div class="rc-hologram-icon" style="color:${item.color || '#00ff88'}; border-color:${item.color || '#00ff88'}55; text-shadow:0 0 12px ${item.color || '#00ff88'}88;">
+                            ${d.icon}
                         </div>
                         <div class="rc-meta">
                             <div class="rc-name">${d.name.toUpperCase()}</div>
@@ -233,15 +252,18 @@ function openRecycleCards() {
                                 </span>
                                 ${valBadge}
                             </div>
+                            <div class="rc-comp-wrap">
+                                <div class="rc-comp-bar" style="background:${item.color || '#00ff88'}; width:${Math.min(item.percentage, 100)}%;"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="rc-steps-list">
-                        <div style="font-family:'Share Tech Mono'; font-size:0.75em; color:#00ff88; letter-spacing:1px; margin-bottom:4px;">
-                            ◈ CIRCULAR RECOVERY PROTOCOL (${d.steps.length} STAGES):
+                        <div style="font-family:'Share Tech Mono'; font-size:0.73em; color:#00ff88; letter-spacing:1px; margin-bottom:4px;">
+                            ◈ RECOVERY & VALORIZATION PROTOCOL (${d.steps.length} STAGES):
                         </div>
                         ${d.steps.slice(0, 3).map((s, idx) => `
                             <div class="rc-step-row">
-                                <span class="rc-step-num">${String(idx + 1).padStart(2, '0')}</span>
+                                <span class="rc-step-num">[0${idx + 1}]</span>
                                 <span>${s}</span>
                             </div>
                         `).join('')}

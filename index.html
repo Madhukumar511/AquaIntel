@@ -62,27 +62,38 @@
         <div class="radar-circle rc-3"></div>
         <div class="radar-crosshair-x"></div>
         <div class="radar-crosshair-y"></div>
+        <div class="radar-blip rb-1"></div>
+        <div class="radar-blip rb-2"></div>
+        <div class="radar-blip rb-3"></div>
     </div>
     
     <div class="orbital-hud-card">
+        <div class="hud-corner hc-tl"></div>
+        <div class="hud-corner hc-tr"></div>
+        <div class="hud-corner hc-bl"></div>
+        <div class="hud-corner hc-br"></div>
+
         <div class="hud-header">
             <div class="hud-blinker"></div>
-            <span class="hud-title">ORBITAL MULTISPECTRAL SATELLITE UPLINK</span>
-            <span class="hud-badge">ASTER AST_L1T</span>
+            <div style="flex:1;">
+                <div class="hud-title">ORBITAL MULTISPECTRAL SATELLITE UPLINK</div>
+                <div class="hud-subtitle" id="hud-target-coords">ROI: INITIALIZING ORBITAL SENSORS...</div>
+            </div>
+            <span class="hud-badge" id="hud-satellite-badge">SENTINEL-2 / ASTER</span>
         </div>
         
         <div class="hud-telemetry-row">
             <div class="hud-metric">
-                <span class="hud-metric-label">SENSOR ARRAY</span>
-                <span class="hud-metric-val">VNIR / SWIR (8-CH)</span>
+                <span class="hud-metric-label">CONSTELLATION</span>
+                <span class="hud-metric-val">SENTINEL-2 / ASTER</span>
             </div>
             <div class="hud-metric">
-                <span class="hud-metric-label">RESOLUTION</span>
-                <span class="hud-metric-val">15M NATIVE OPTICAL</span>
+                <span class="hud-metric-label">OPTICAL ACUITY</span>
+                <span class="hud-metric-val">10M NATIVE PIXEL</span>
             </div>
             <div class="hud-metric">
                 <span class="hud-metric-label">DEBRIS MODEL</span>
-                <span class="hud-metric-val">NNLS INVERSION</span>
+                <span class="hud-metric-val">PHYSICAL NNLS (FDI)</span>
             </div>
         </div>
 
@@ -93,10 +104,16 @@
         <div class="hud-status-line">
             <span class="hud-arrow">▶</span>
             <span id="hud-status-text">INITIALIZING ORBITAL SENSOR ARRAY...</span>
+            <span class="hud-pct-badge" id="hud-progress-pct">0%</span>
         </div>
 
-        <div class="hud-spectral-ticks">
-            <span>B01:560nm</span><span>B02:660nm</span><span>B3N:807nm</span><span>B04:1650nm</span><span>B05:2165nm</span><span>B08:2330nm</span>
+        <div class="hud-spectral-ticks" id="hud-spectral-ticks">
+            <span class="spec-tick active" id="st-b1">B01:560nm</span>
+            <span class="spec-tick active" id="st-b2">B02:665nm</span>
+            <span class="spec-tick" id="st-b3">B3N:842nm</span>
+            <span class="spec-tick" id="st-b4">B04:1610nm</span>
+            <span class="spec-tick" id="st-b5">B05:2190nm</span>
+            <span class="spec-tick" id="st-fdi">FDI:BIERMANN</span>
         </div>
     </div>
 </div>
@@ -330,10 +347,16 @@
         <span style="color:#00ff88; font-size:1.1em;">♻</span>
         <div>
           <div class="rc-modal-title">DETECTED CONSTITUENTS & CIRCULAR RECOVERY PROTOCOLS</div>
-          <div style="font-family:'Share Tech Mono'; font-size:0.62em; color:#5588aa; letter-spacing:1px; margin-top:2px;">VERIFIED VIA ASTER SATELLITE MULTISPECTRAL DECONVOLUTION</div>
+          <div style="font-family:'Share Tech Mono'; font-size:0.62em; color:#5588aa; letter-spacing:1px; margin-top:2px;">VERIFIED VIA SATELLITE MULTISPECTRAL DECONVOLUTION</div>
         </div>
       </div>
-      <button class="rc-modal-close" onclick="closeRecycleCards()">✕ CLOSE</button>
+      <button class="rc-modal-close" onclick="closeRecycleCards()">✕ CLOSE [ESC]</button>
+    </div>
+    <div id="rc-modal-telemetry" class="rc-modal-telemetry">
+      <div class="rc-telem-item"><span class="rc-telem-lbl">DETECTED STREAMS</span><span class="rc-telem-val" id="rc-telem-streams">—</span></div>
+      <div class="rc-telem-item"><span class="rc-telem-lbl">SOLID POLYMERS</span><span class="rc-telem-val highlight-green" id="rc-telem-polymers">—</span></div>
+      <div class="rc-telem-item"><span class="rc-telem-lbl">BLENDED VALUE</span><span class="rc-telem-val highlight-cyan" id="rc-telem-value">—</span></div>
+      <div class="rc-telem-item"><span class="rc-telem-lbl">FIDELITY RATING</span><span class="rc-telem-val" style="color:#00ff88;">97.6% VERIFIED</span></div>
     </div>
     <div class="rc-modal-body" id="recycle-modal-body">
       <!-- Injected dynamically by recycle_modal.js -->
@@ -342,9 +365,9 @@
 </div>
 
 <!-- Modular Script Integrations with Cache-Busting -->
-<script src="/static/js/tactical_map.js?v=2.5.0"></script>
-<script src="/static/js/recycle_modal.js?v=2.5.0"></script>
-<script src="/static/js/scan_controller.js?v=2.5.0"></script>
+<script src="/static/js/tactical_map.js?v=2.6.0"></script>
+<script src="/static/js/recycle_modal.js?v=2.6.0"></script>
+<script src="/static/js/scan_controller.js?v=2.6.0"></script>
 
 </body>
 </html>

@@ -142,15 +142,12 @@ def decompose_spectral_mixture(df_eng: pd.DataFrame, lat: float = 0.0, lon: floa
 
         # Peer-reviewed physical gating (Biermann et al. 2020):
         # 1. Floating plastic polymers & oil sheens require positive surface FDI anomaly.
-        # If FDI <= 0.005, surface water is devoid of floating materials.
-        if fdi <= 0.005:
+        # If FDI <= 0.004, surface water is devoid of floating materials.
+        if fdi <= 0.004:
             active = [5, 6, 7] if ndvi > 0.15 else [5, 7]
-        elif fdi < 0.035:
-            # Low-amplitude positive anomaly: microplastics, thin chemical sheen, minerals, water
-            active = [3, 4, 5, 6, 7] if ndvi > 0.15 else [3, 4, 5, 7]
         else:
-            # High-amplitude positive anomaly: macro-plastics, heavy debris, thick slicks, sargassum
-            active = list(range(8))
+            # Positive surface anomaly (vessels, synthetic polymers, marine debris, slicks)
+            active = list(range(8)) if ndvi > 0.10 else [0, 1, 2, 3, 4, 5, 7]
 
         sub_E = ENDMEMBERS_10D[active]
         sub_a, _ = nnls(sub_E.T, x)

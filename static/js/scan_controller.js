@@ -205,6 +205,8 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
     const orbitalOverlay = document.getElementById('orbital-scan-overlay');
     const hudStatus = document.getElementById('hud-status-text');
     const hudProgress = document.getElementById('hud-progress-bar');
+    const hudCoords = document.getElementById('hud-target-coords');
+    const hudPct = document.getElementById('hud-progress-pct');
 
     if (btn) {
         btn.innerText = "Extracting Data...";
@@ -225,15 +227,21 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
         orbitalOverlay.classList.remove('orbital-scan-hidden');
         orbitalOverlay.classList.add('orbital-scan-active');
         if (hudProgress) hudProgress.style.width = '15%';
-        if (hudStatus) hudStatus.textContent = 'INITIALIZING ASTER SENSOR ARRAY...';
+        if (hudPct) hudPct.textContent = '15%';
+        if (hudStatus) hudStatus.textContent = 'CALIBRATING SATELLITE SENSOR ARRAY...';
+        if (hudCoords) {
+            const latStr = `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? 'N' : 'S'}`;
+            const lonStr = `${Math.abs(lon).toFixed(4)}°${lon >= 0 ? 'E' : 'W'}`;
+            hudCoords.textContent = `ROI: ${latStr}, ${lonStr} | RADIUS: ${finalRadius}M`;
+        }
     }
 
     const scanSteps = [
-        { text: 'CALIBRATING ASTER SENSOR ARRAY...', pct: '25%' },
-        { text: `SCANNING SATELLITE TILE (${finalRadius}m RADIUS)...`, pct: '48%' },
-        { text: 'RUNNING SPECTRAL MIXTURE ANALYSIS (NNLS)...', pct: '72%' },
-        { text: 'COMPUTING BIERMANN FLOATING DEBRIS INDEX (FDI)...', pct: '88%' },
-        { text: 'SYNTHESIZING CONSTITUENTS & CLUSTERING...', pct: '96%' }
+        { text: 'SAMPLING SENTINEL-2 / ASTER MULTISPECTRAL TILES...', pct: '28%', ticks: ['st-b1', 'st-b2'] },
+        { text: `SCANNING SATELLITE TILE (${finalRadius}m NATIVE OPTICAL)...`, pct: '50%', ticks: ['st-b1', 'st-b2', 'st-b3'] },
+        { text: 'RUNNING SPECTRAL MIXTURE DECONVOLUTION (NNLS)...', pct: '74%', ticks: ['st-b1', 'st-b2', 'st-b3', 'st-b4'] },
+        { text: 'COMPUTING BIERMANN FLOATING DEBRIS INDEX (FDI)...', pct: '88%', ticks: ['st-b1', 'st-b2', 'st-b3', 'st-b4', 'st-b5', 'st-fdi'] },
+        { text: 'ISOLATING MARINE VESSELS & POLYMER CLUSTERS...', pct: '96%', ticks: ['st-b1', 'st-b2', 'st-b3', 'st-b4', 'st-b5', 'st-fdi'] }
     ];
     if (statusDiv) statusDiv.style.display = 'block';
     let stepIdx = 0;
@@ -244,6 +252,13 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
         if (stepText) stepText.textContent = '⬡ ' + currentStep.text;
         if (hudStatus) hudStatus.textContent = currentStep.text;
         if (hudProgress) hudProgress.style.width = currentStep.pct;
+        if (hudPct) hudPct.textContent = currentStep.pct;
+        if (currentStep.ticks) {
+            currentStep.ticks.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('active');
+            });
+        }
     }, 700);
 
     try {
@@ -264,7 +279,8 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
 
         // Update orbital telemetry to 100% completion
         if (hudProgress) hudProgress.style.width = '100%';
-        if (hudStatus) hudStatus.textContent = 'ORBITAL CLUSTERING COMPLETE (100%)';
+        if (hudPct) hudPct.textContent = '100%';
+        if (hudStatus) hudStatus.textContent = '✓ ORBITAL CLUSTERING SYNCHRONIZED (100%)';
 
         // Store breakdown for Centered Tactical Recycle Center modal
         window._latestScanBreakdown = result.breakdown;
