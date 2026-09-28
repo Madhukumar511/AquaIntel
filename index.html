@@ -53,6 +53,54 @@
 
 <div class="scan-line" id="scanner"></div>
 
+<!-- Futuristic Tactical Orbital Scan HUD Overlay -->
+<div id="orbital-scan-overlay" class="orbital-scan-hidden">
+    <div class="orbital-radar-grid">
+        <div class="radar-sweep"></div>
+        <div class="radar-circle rc-1"></div>
+        <div class="radar-circle rc-2"></div>
+        <div class="radar-circle rc-3"></div>
+        <div class="radar-crosshair-x"></div>
+        <div class="radar-crosshair-y"></div>
+    </div>
+    
+    <div class="orbital-hud-card">
+        <div class="hud-header">
+            <div class="hud-blinker"></div>
+            <span class="hud-title">ORBITAL MULTISPECTRAL SATELLITE UPLINK</span>
+            <span class="hud-badge">ASTER AST_L1T</span>
+        </div>
+        
+        <div class="hud-telemetry-row">
+            <div class="hud-metric">
+                <span class="hud-metric-label">SENSOR ARRAY</span>
+                <span class="hud-metric-val">VNIR / SWIR (8-CH)</span>
+            </div>
+            <div class="hud-metric">
+                <span class="hud-metric-label">RESOLUTION</span>
+                <span class="hud-metric-val">15M NATIVE OPTICAL</span>
+            </div>
+            <div class="hud-metric">
+                <span class="hud-metric-label">DEBRIS MODEL</span>
+                <span class="hud-metric-val">NNLS INVERSION</span>
+            </div>
+        </div>
+
+        <div class="hud-progress-wrap">
+            <div class="hud-progress-bar" id="hud-progress-bar"></div>
+        </div>
+
+        <div class="hud-status-line">
+            <span class="hud-arrow">▶</span>
+            <span id="hud-status-text">INITIALIZING ORBITAL SENSOR ARRAY...</span>
+        </div>
+
+        <div class="hud-spectral-ticks">
+            <span>B01:560nm</span><span>B02:660nm</span><span>B3N:807nm</span><span>B04:1650nm</span><span>B05:2165nm</span><span>B08:2330nm</span>
+        </div>
+    </div>
+</div>
+
 <!-- Collapsible Peek Controls -->
 <button class="peek-btn" id="peek-left" onclick="showPanels()">⬡ CONTROLS</button>
 <button class="peek-btn" id="peek-right" onclick="showPanels()">GEMINI ⬡</button>
@@ -274,27 +322,29 @@
   ♻ VIEW DETECTED ITEMS
 </button>
 
-<!-- Corner Card Overlay -->
-<div id="recycle-overlay">
-  <div id="recycle-backdrop" onclick="closeRecycleCards()"></div>
-  <button id="recycle-close-btn" onclick="closeRecycleCards()">✕ CLOSE</button>
-  
-  <div class="rc-card" id="rc-card-0"></div>
-  <div class="rc-card" id="rc-card-1"></div>
-  <div class="rc-card" id="rc-card-2"></div>
-  <div class="rc-card" id="rc-card-3"></div>
+<!-- Centered Tactical Detected Items & Recycling Modal -->
+<div id="recycle-center-modal" onclick="if(event.target===this)closeRecycleCards()">
+  <div class="rc-modal-container">
+    <div class="rc-modal-header">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="color:#00ff88; font-size:1.1em;">♻</span>
+        <div>
+          <div class="rc-modal-title">DETECTED CONSTITUENTS & CIRCULAR RECOVERY PROTOCOLS</div>
+          <div style="font-family:'Share Tech Mono'; font-size:0.62em; color:#5588aa; letter-spacing:1px; margin-top:2px;">VERIFIED VIA ASTER SATELLITE MULTISPECTRAL DECONVOLUTION</div>
+        </div>
+      </div>
+      <button class="rc-modal-close" onclick="closeRecycleCards()">✕ CLOSE</button>
+    </div>
+    <div class="rc-modal-body" id="recycle-modal-body">
+      <!-- Injected dynamically by recycle_modal.js -->
+    </div>
+  </div>
 </div>
 
-<!-- Full-Screen Details Center Modal -->
-<div id="detail-modal-wrapper">
-    <div id="detail-modal-bg" onclick="closeCenterModal()"></div>
-    <div id="detail-modal-content"></div>
-</div>
-
-<!-- Modular Script Integrations -->
-<script src="/static/js/tactical_map.js"></script>
-<script src="/static/js/recycle_modal.js"></script>
-<script src="/static/js/scan_controller.js"></script>
+<!-- Modular Script Integrations with Cache-Busting -->
+<script src="/static/js/tactical_map.js?v=2.5.0"></script>
+<script src="/static/js/recycle_modal.js?v=2.5.0"></script>
+<script src="/static/js/scan_controller.js?v=2.5.0"></script>
 
 </body>
 </html>

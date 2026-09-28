@@ -178,110 +178,94 @@ function hideRecycleBtn() {
 }
 
 function openRecycleCards() {
-    const spans = document.querySelectorAll('#materials-list > div span:first-child');
-    let materials = Array.from(spans).map(s => s.textContent.trim()).filter(Boolean);
+    const modal = document.getElementById('recycle-center-modal');
+    const body = document.getElementById('recycle-modal-body');
+    if (!modal || !body) return;
 
-    if (!materials.length && window._rcMaterials) {
-        materials = window._rcMaterials;
+    // Extract detected constituents from latest scan
+    let detected = [];
+    if (window._latestScanBreakdown && Array.isArray(window._latestScanBreakdown)) {
+        detected = window._latestScanBreakdown.filter(b => b.percentage > 0.5 && b.id !== 'water');
+    } else if (window._rcMaterials && Array.isArray(window._rcMaterials)) {
+        detected = window._rcMaterials.map(name => ({ name, percentage: 12.5, color: '#00ff88', category: 'plastic' }));
     }
-    while (materials.length < 4) materials.push('Marine Polymer');
-    materials = materials.slice(0, 4);
 
-    materials.forEach((mat, i) => {
-        const d = getRcData(mat);
-        const card = document.getElementById('rc-card-' + i);
-        if (!card) return;
+    if (detected.length === 0) {
+        body.innerHTML = `
+            <div style="text-align:center; padding:50px 20px; color:#5588aa; font-family:'Share Tech Mono', monospace;">
+                <div style="font-size:3em; margin-bottom:15px; color:#00ff88;">✓</div>
+                <div style="font-size:1.1em; color:#e8f4ff; letter-spacing:2px; margin-bottom:8px;">SECTOR SCANNED — NO SYNTHETIC POLYMERS DETECTED</div>
+                <div style="font-size:0.8em; color:#5588aa;">Multispectral optical telemetry confirms clear ocean water with zero harvestable debris clusters.</div>
+            </div>`;
+    } else {
+        const USD_TO_INR = 83.5;
+        const VALUE_MAP = {
+            pet_bottles: 320,
+            hdpe_rigid: 290,
+            nylon_nets: 350,
+            microplastics: 180,
+            oil_sheen: 0,
+            minerals: 45,
+            sargassum: 55
+        };
 
-        card.innerHTML = `
-            <div class="rc-img-box">
-                <img src="${d.img}" alt="${d.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                <div class="rc-img-fallback" style="display:none;">${d.icon}</div>
-            </div>
-            <div class="rc-mat-name">◈ ${d.name}</div>
-            <div class="rc-mat-sub">DETECTED SURFACE MATERIAL</div>
-            <div class="rc-detail-toggle" onclick="openCenterModal('${mat.replace(/'/g, "\\'")}')">
-                <span class="rc-toggle-arrow">▸</span> detail
-            </div>
-        `;
+        let cardsHtml = '<div class="rc-grid">';
+        detected.forEach(item => {
+            const d = getRcData(item.name || item.id);
+            const priceUSD = VALUE_MAP[item.id] || 250;
+            const priceINR = Math.round(priceUSD * USD_TO_INR);
+            const valBadge = priceUSD > 0 
+                ? `<span class="rc-val-badge">₹${priceINR.toLocaleString('en-IN')}/t ($${priceUSD})</span>`
+                : `<span class="rc-val-badge" style="color:#ffaa00; border-color:rgba(255,170,0,0.3);">HAZARD EXTRACTION</span>`;
 
-        const animMap = ['rcCard0In', 'rcCard1In', 'rcCard2In', 'rcCard3In'];
-        card.style.animation = 'none';
-        card.offsetHeight; // trigger reflow
-        card.style.animation = animMap[i] + ' 0.55s cubic-bezier(0.175,0.885,0.32,1.275) ' + (i * 0.1) + 's forwards';
-    });
+            cardsHtml += `
+                <div class="rc-card-item" style="border-left-color: ${item.color || '#00ff88'};">
+                    <div class="rc-card-top">
+                        <div class="rc-thumb">
+                            <img src="${d.img}" alt="${d.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                            <div class="rc-img-fallback" style="display:none; font-size:1.8em;">${d.icon}</div>
+                        </div>
+                        <div class="rc-meta">
+                            <div class="rc-name">${d.name.toUpperCase()}</div>
+                            <div class="rc-badges">
+                                <span class="rc-pct-badge" style="background:${item.color || '#00ff88'}22; color:${item.color || '#00ff88'}; border:1px solid ${item.color || '#00ff88'}66;">
+                                    ${item.percentage ? item.percentage.toFixed(1) + '%' : 'VERIFIED'}
+                                </span>
+                                ${valBadge}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rc-steps-list">
+                        <div style="font-family:'Share Tech Mono'; font-size:0.75em; color:#00ff88; letter-spacing:1px; margin-bottom:4px;">
+                            ◈ CIRCULAR RECOVERY PROTOCOL (${d.steps.length} STAGES):
+                        </div>
+                        ${d.steps.slice(0, 3).map((s, idx) => `
+                            <div class="rc-step-row">
+                                <span class="rc-step-num">${String(idx + 1).padStart(2, '0')}</span>
+                                <span>${s}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+        });
+        cardsHtml += '</div>';
+        body.innerHTML = cardsHtml;
+    }
 
-    const overlay = document.getElementById('recycle-overlay');
-    if (overlay) overlay.style.display = 'block';
+    modal.style.display = 'flex';
 }
 
 function closeRecycleCards() {
-    const overlay = document.getElementById('recycle-overlay');
-    if (overlay) overlay.style.display = 'none';
+    const modal = document.getElementById('recycle-center-modal');
+    if (modal) modal.style.display = 'none';
 }
 
-function openCenterModal(matName) {
-    const d = getRcData(matName);
-    const modalContent = document.getElementById('detail-modal-content');
-    if (!modalContent) return;
-
-    modalContent.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,255,136,0.3); padding: 20px 40px;">
-            <div style="font-family: 'Share Tech Mono', monospace; font-size: 1.4em; color: #00ff88; letter-spacing: 2px;">RECYCLE INTELLIGENCE CORE</div>
-            <button onclick="closeCenterModal()" style="background: none; border: none; color: #00ff88; font-size: 1.2em; cursor: pointer; font-family: 'Share Tech Mono', monospace;">✕ CLOSE</button>
-        </div>
-        <div style="display: flex; flex: 1; overflow: hidden;">
-            <div style="flex: 1; padding: 40px; border-right: 1px solid rgba(0,255,136,0.2); display: flex; flex-direction: column; overflow-y: auto;">
-                <div style="font-family: 'Share Tech Mono', monospace; font-size: 1em; color: #4da6ff; letter-spacing: 2px; margin-bottom: 10px;">◈ DETECTED MATERIAL</div>
-                <div style="font-family: 'Share Tech Mono', monospace; font-size: 2.5em; color: #fff; text-shadow: 0 0 15px rgba(0,255,136,0.5); margin-bottom: 20px;">${d.name.toUpperCase()}</div>
-                <div style="width: 100%; height: 250px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(0,255,136,0.4); box-shadow: 0 0 20px rgba(0,255,136,0.15); margin-bottom: 20px;">
-                    <img src="${d.img}" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div style="color: #8aaabb; font-size: 1.1em; line-height: 1.6; margin-bottom: 20px;">
-                    This synthetic constituent was identified via multispectral light bandwidth telemetry.<br>
-                    Follow the verified circular economy steps to capture and recycle recovered waste.
-                </div>
-                <div style="background: rgba(0,255,136,0.05); border-left: 3px solid #00ff88; padding: 15px; border-radius: 4px;">
-                    <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.8em; color: #00ff88; letter-spacing: 1px; margin-bottom: 5px;">◈ RECOVERY STEPS</div>
-                    <div style="font-family: 'Share Tech Mono', monospace; font-size: 1.2em; color: #fff;">${d.steps.length} STAGES IDENTIFIED</div>
-                </div>
-            </div>
-            <div style="flex: 1.5; padding: 40px; overflow-y: auto;">
-                <div style="font-family: 'Share Tech Mono', monospace; font-size: 1em; color: #4da6ff; letter-spacing: 2px; margin-bottom: 10px;">♻ RECOVERY PROTOCOL</div>
-                <div style="font-family: 'Share Tech Mono', monospace; font-size: 1.8em; color: #fff; margin-bottom: 30px;">CIRCULAR PROCESS — ${d.name.toUpperCase()}</div>
-                <div>
-                    ${d.steps.map((s, idx) => `
-                        <div style="display: flex; gap: 15px; background: rgba(0,255,136,0.05); padding: 20px; border-left: 3px solid #00ff88; border-radius: 6px; margin-bottom: 15px; opacity: 0; transform: translateX(30px); animation: slideInRight 0.5s ease forwards ${idx * 0.1}s;">
-                            <div style="color: #00ff88; font-family: 'Share Tech Mono', monospace; font-size: 1.5em; font-weight: bold;">${String(idx + 1).padStart(2, '0')}</div>
-                            <div style="color: #e8f4ff; font-size: 1.1em; line-height: 1.6;">${s}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        </div>
-    `;
-
-    const wrapper = document.getElementById('detail-modal-wrapper');
-    if (wrapper) wrapper.style.display = 'block';
-}
-
-function closeCenterModal() {
-    const wrapper = document.getElementById('detail-modal-wrapper');
-    const content = document.getElementById('detail-modal-content');
-    if (!wrapper || !content) return;
-    content.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
-    content.style.opacity = '0';
-    content.style.transform = 'scale(0.97)';
-    setTimeout(() => {
-        wrapper.style.display = 'none';
-        content.style.transition = '';
-        content.style.opacity = '';
-        content.style.transform = '';
-    }, 260);
-}
+// Global ESC key listener to close modal
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeRecycleCards();
+});
 
 window.showRecycleBtn = showRecycleBtn;
 window.hideRecycleBtn = hideRecycleBtn;
 window.openRecycleCards = openRecycleCards;
 window.closeRecycleCards = closeRecycleCards;
-window.openCenterModal = openCenterModal;
-window.closeCenterModal = closeCenterModal;

@@ -102,6 +102,12 @@ function calculateROI() {
         profitEl.innerText = formatINR(profitINR);
         profitEl.className = profitINR >= 0 ? "stat-val highlight-green" : "stat-val highlight-red";
     }
+
+    // Synchronize Gemini Intelligence Core Est. Recovery display strictly with ROI
+    const gpRecEl = document.getElementById('gp-recovery');
+    if (gpRecEl) {
+        gpRecEl.textContent = formatINR(revenueINR);
+    }
 }
 
 // Dashboard Reset
@@ -196,6 +202,9 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
     const scanner = document.getElementById('scanner');
     const statusDiv = document.getElementById('scan-status');
     const stepText = document.getElementById('scan-step-text');
+    const orbitalOverlay = document.getElementById('orbital-scan-overlay');
+    const hudStatus = document.getElementById('hud-status-text');
+    const hudProgress = document.getElementById('hud-progress-bar');
 
     if (btn) {
         btn.innerText = "Extracting Data...";
@@ -211,20 +220,31 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
         scanner.animate([{ top: '0px' }, { top: '100vh' }], { duration: 1500, iterations: Infinity });
     }
 
+    // Activate Futuristic Tactical Orbital Scan HUD Overlay
+    if (orbitalOverlay) {
+        orbitalOverlay.classList.remove('orbital-scan-hidden');
+        orbitalOverlay.classList.add('orbital-scan-active');
+        if (hudProgress) hudProgress.style.width = '15%';
+        if (hudStatus) hudStatus.textContent = 'INITIALIZING ASTER SENSOR ARRAY...';
+    }
+
     const scanSteps = [
-        '⬡ Calibrating ASTER sensor array...',
-        `⬡ Scanning ${finalRadius}m radius...`,
-        '⬡ Running Deep Neural Network (512→256→128)...',
-        '⬡ Computing FDI (Biermann) & NDVI indices...',
-        '⬡ Rendering cluster heatmap...'
+        { text: 'CALIBRATING ASTER SENSOR ARRAY...', pct: '25%' },
+        { text: `SCANNING SATELLITE TILE (${finalRadius}m RADIUS)...`, pct: '48%' },
+        { text: 'RUNNING SPECTRAL MIXTURE ANALYSIS (NNLS)...', pct: '72%' },
+        { text: 'COMPUTING BIERMANN FLOATING DEBRIS INDEX (FDI)...', pct: '88%' },
+        { text: 'SYNTHESIZING CONSTITUENTS & CLUSTERING...', pct: '96%' }
     ];
     if (statusDiv) statusDiv.style.display = 'block';
     let stepIdx = 0;
-    if (stepText) stepText.textContent = scanSteps[0];
+    if (stepText) stepText.textContent = '⬡ ' + scanSteps[0].text;
     const stepInterval = setInterval(() => {
         stepIdx++;
-        if (stepText) stepText.textContent = scanSteps[Math.min(stepIdx, scanSteps.length - 1)];
-    }, 900);
+        const currentStep = scanSteps[Math.min(stepIdx, scanSteps.length - 1)];
+        if (stepText) stepText.textContent = '⬡ ' + currentStep.text;
+        if (hudStatus) hudStatus.textContent = currentStep.text;
+        if (hudProgress) hudProgress.style.width = currentStep.pct;
+    }, 700);
 
     try {
         // High-level: Relative API endpoint works seamlessly across all ports and environments
@@ -242,16 +262,35 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
 
         const result = await response.json();
 
+        // Update orbital telemetry to 100% completion
+        if (hudProgress) hudProgress.style.width = '100%';
+        if (hudStatus) hudStatus.textContent = 'ORBITAL CLUSTERING COMPLETE (100%)';
+
+        // Store breakdown for Centered Tactical Recycle Center modal
+        window._latestScanBreakdown = result.breakdown;
+
+        // Dismiss Orbital HUD overlay smoothly after 550ms so user perceives complete scan
+        if (orbitalOverlay) {
+            setTimeout(() => {
+                orbitalOverlay.classList.remove('orbital-scan-active');
+                orbitalOverlay.classList.add('orbital-scan-hidden');
+            }, 550);
+        }
+
         // High-level: Distribute clusters into Deck.gl HexagonLayers
-        const plasticData = result.data.filter((d, i) => d.class_id === 0 && i % 2 === 0);
-        const debrisData = result.data.filter((d, i) => d.class_id === 0 && i % 2 !== 0);
+        // Direct class mapping from model runner:
+        // class_id 0 = Debris / Vessel / Polymers
+        // class_id 1 = Water
+        // class_id 2 = Minerals / Organic
+        const plasticData = result.data.filter(d => d.class_id === 0 && (d.debris_confidence >= 0.20 || d.debris_confidence === undefined));
+        const debrisData = result.data.filter(d => d.class_id === 0 && d.debris_confidence < 0.20);
         const cityData = result.data.filter(d => d.class_id === 1);
         const mineralData = result.data.filter(d => d.class_id === 2);
 
-        const plasticLayer = new deck.HexagonLayer({ id: 'plastic-hex', data: plasticData, getPosition: d => [d.lon, d.lat], colorRange: [[255, 51, 51, 220]], radius: 40, coverage: 0.9, opacity: 0.8 });
-        const debrisLayer = new deck.HexagonLayer({ id: 'debris-hex', data: debrisData, getPosition: d => [d.lon, d.lat], colorRange: [[255, 153, 0, 220]], radius: 40, coverage: 0.9, opacity: 0.8 });
-        const cityLayer = new deck.HexagonLayer({ id: 'city-hex', data: cityData, getPosition: d => [d.lon, d.lat], colorRange: [[0, 102, 255, 180]], radius: 40, coverage: 0.9, opacity: 0.5 });
-        const mineralLayer = new deck.HexagonLayer({ id: 'mineral-hex', data: mineralData, getPosition: d => [d.lon, d.lat], colorRange: [[0, 255, 136, 180]], radius: 40, coverage: 0.9, opacity: 0.6 });
+        const plasticLayer = new deck.HexagonLayer({ id: 'plastic-hex', data: plasticData, getPosition: d => [d.lon, d.lat], colorRange: [[255, 51, 51, 230]], radius: 35, coverage: 0.9, opacity: 0.85 });
+        const debrisLayer = new deck.HexagonLayer({ id: 'debris-hex', data: debrisData, getPosition: d => [d.lon, d.lat], colorRange: [[255, 140, 0, 220]], radius: 35, coverage: 0.9, opacity: 0.85 });
+        const cityLayer = new deck.HexagonLayer({ id: 'city-hex', data: cityData, getPosition: d => [d.lon, d.lat], colorRange: [[0, 102, 255, 140]], radius: 35, coverage: 0.8, opacity: 0.4 });
+        const mineralLayer = new deck.HexagonLayer({ id: 'mineral-hex', data: mineralData, getPosition: d => [d.lon, d.lat], colorRange: [[0, 255, 136, 180]], radius: 35, coverage: 0.9, opacity: 0.6 });
 
         window.deckgl?.setProps({ layers: [cityLayer, mineralLayer, debrisLayer, plasticLayer] });
 
@@ -295,27 +334,28 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
             });
         }
 
-        globalWastePct = result.metrics.avg_metal;
-
-        // Calculate dynamic blended market rate from detected constituents
+        // Calculate dynamic blended market rate and recyclable polymer yield from detected constituents
+        let totalValSum = 0;
+        let totalPolymerPct = 0;
         if (result.breakdown && Array.isArray(result.breakdown)) {
-            let totalValSum = 0;
-            let totalWastePctSum = 0;
             result.breakdown.forEach(item => {
-                if (item.id !== 'water' && item.percentage > 0) {
+                if (item.category === 'plastic' && item.percentage > 0) {
                     const price = RECOVERY_MARKET_RATES[item.id] || 250;
                     totalValSum += (item.percentage / 100.0) * price;
-                    totalWastePctSum += (item.percentage / 100.0);
+                    totalPolymerPct += item.percentage;
                 }
             });
-            if (totalWastePctSum > 0) {
-                globalValuePerTon = Math.round(totalValSum / totalWastePctSum);
+            if (totalPolymerPct > 0) {
+                globalValuePerTon = Math.round(totalValSum / (totalPolymerPct / 100.0));
             } else {
-                globalValuePerTon = result.intelligence.base_value_per_ton || 280;
+                globalValuePerTon = result.intelligence.base_value_per_ton || 250;
             }
         } else {
-            globalValuePerTon = result.intelligence.base_value_per_ton || 280;
+            globalValuePerTon = result.intelligence.base_value_per_ton || 250;
         }
+
+        // Only solid recyclable polymers contribute to recoverable physical harvest yield
+        globalWastePct = totalPolymerPct;
 
         document.getElementById('roi-zone-type').innerText = result.intelligence.zone_type;
         document.getElementById('roi-value-ton').innerText = formatINR(globalValuePerTon * USD_TO_INR) + '/ton';
@@ -328,10 +368,7 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
         document.getElementById('gp-zone-type').textContent = result.intelligence.zone_type;
         document.getElementById('gp-rsi').textContent = (result.metrics.fdi_score || result.metrics.rsi_score).toFixed(3);
         document.getElementById('gp-metal').textContent = result.metrics.avg_metal + '%';
-
-        const batchTons = parseFloat(document.getElementById('roi-tons')?.value) || 25;
-        const recoveryINR = (result.metrics.avg_metal / 100.0) * globalValuePerTon * batchTons * USD_TO_INR;
-        document.getElementById('gp-recovery').textContent = formatINR(recoveryINR);
+        // calculateROI() already synchronized gp-recovery with exact ROI calculation!
         document.getElementById('gemini-zone-label').textContent = '◈ ACTIVE: ' + result.intelligence.zone_type.toUpperCase();
         document.getElementById('topbar-sector').textContent = '◈ TARGET LOCKED: ' + sectorName.toUpperCase();
         document.getElementById('gemini-timestamp').textContent = new Date().toUTCString().slice(17, 25) + ' UTC';
@@ -401,6 +438,10 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
         typeWriter(formatted, 'ai-insight', 18);
 
     } catch (error) {
+        if (orbitalOverlay) {
+            orbitalOverlay.classList.remove('orbital-scan-active');
+            orbitalOverlay.classList.add('orbital-scan-hidden');
+        }
         if (dash) {
             dash.style.display = "block";
             dash.style.opacity = 1;
@@ -408,6 +449,10 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
         typeWriter(`CRITICAL ERROR: ${error.message}\n\n> Verify AquaIntel Core API is online\n> Reposition targeting grid over target ocean waters.`, 'ai-insight', 20);
     } finally {
         if (scanner) scanner.style.display = "none";
+        if (orbitalOverlay) {
+            orbitalOverlay.classList.remove('orbital-scan-active');
+            orbitalOverlay.classList.add('orbital-scan-hidden');
+        }
         clearInterval(stepInterval);
         if (statusDiv) statusDiv.style.display = 'none';
         if (btn) {

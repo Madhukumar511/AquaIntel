@@ -47,7 +47,8 @@ def sample_satellite_bands(lat: float, lon: float, radius: int) -> Optional[pd.D
             .select(BANDS)
         )
 
-        dynamic_scale = max(30, int(radius / 15))
+        # Native ASTER VNIR resolution is 15m; preserve spatial acuity for vessels & debris patches
+        dynamic_scale = max(15, int(radius / 75))
         raw_data = aster.sample(region=roi, scale=dynamic_scale, numPixels=4900, geometries=True).getInfo()
 
         if not raw_data or 'features' not in raw_data or len(raw_data['features']) == 0:

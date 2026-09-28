@@ -102,6 +102,22 @@ def scan_ocean_surface(request: ScanRequest) -> Dict[str, Any]:
     # 2. Engineer spectral features and physics indices from real satellite bands
     features_df = engineer_features(raw_df)
 
+    mean_ndwi = float(features_df['NDWI'].mean()) if 'NDWI' in features_df.columns else 0.0
+    mean_fdi = float(features_df['FDI'].mean()) if 'FDI' in features_df.columns else 0.0
+
+    if mean_ndwi < -0.1:
+        context_profile = "Coastal Land / Terrestrial Interface"
+        materials_expected = "Terrestrial Minerals, Urban Surface Runoff, Coastal Sediment"
+    elif mean_fdi > 0.03:
+        context_profile = "High-Density Surface Marine Debris Anomaly"
+        materials_expected = "PET Bottles, Rigid HDPE Crates, Synthetic Ghost Fishing Nets"
+    elif mean_fdi > 0.01:
+        context_profile = "Moderate Surface Slick / Oceanic Slicks"
+        materials_expected = "Microplastics, Chemical Oil Sheens, Organic Spume"
+    else:
+        context_profile = "Pelagic Marine Environment"
+        materials_expected = "Pure Seawater, Suspended Minerals, Phytoplankton"
+
     # 3. Neural network prediction / NNLS physical decomposition
     inference_result = run_model_inference(features_df)
 

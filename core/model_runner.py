@@ -49,9 +49,12 @@ def run_model_inference(df_features: pd.DataFrame) -> Dict[str, Any]:
     Returns cluster points, class percentages, and mean FDI score.
     """
     df = df_features.copy()
+    if 'FDI' not in df.columns or 'NDVI' not in df.columns or 'B01' in df.columns and 'Brightness' not in df.columns:
+        from core.spectral import engineer_features
+        df = engineer_features(df)
 
     if MODEL_LOADED and model_omni is not None:
-        X_10 = df_features[FEATURE_COLS_10].values
+        X_10 = df[FEATURE_COLS_10].values
         scaled_X = scaler_omni.transform(X_10)
         predictions = model_omni.predict(scaled_X, verbose=0)
 
@@ -109,25 +112,48 @@ def run_model_inference(df_features: pd.DataFrame) -> Dict[str, Any]:
         debris_confs = []
         class_ids = []
         for x in X_samples:
-            a, _ = nnls(ENDMEMBERS_10D.T, x)
-            s = np.sum(a)
-            abun = (a / s) if s > 1e-6 else np.ones(8) / 8.0
-            waste_abun = float(np.sum(abun[0:5]))
-            water_abun = float(abun[7])
-            cid = 0 if waste_abun >= 0.15 else (1 if water_abun >= 0.50 else 2)
-            debris_confs.append(round(waste_abun, 3))
+            fdi = x[9]
+            ndvi = x[8]
+            if fdi <= 0.005:
+                active = [5, 6, 7] if ndvi > 0.15 else [5, 7]
+            elif fdi < 0.035:
+                active = [3, 4, 5, 6, 7] if ndvi > 0.15 else [3, 4, 5, 7]
+            else:
+                active = list(range(8))
+
+            sub_E = ENDMEMBERS_10D[active]
+            sub_a, _ = nnls(sub_E.T, x)
+            s = np.sum(sub_a)
+            sub_a = (sub_a / s) if s > 1e-6 else np.zeros(len(active))
+            full_a = np.zeros(8)
+            for idx, val in zip(active, sub_a):
+                full_a[idx] = val
+
+            waste_abun = float(np.sum(full_a[0:4]))
+            water_abun = float(full_a[7])
+
+            # Detect floating marine objects, vessels, and synthetic polymer debris
+            is_debris = (waste_abun >= 0.10) or (fdi >= 0.015 and ndvi < 0.40) or (waste_abun + full_a[4] >= 0.15 and fdi >= 0.008)
+            if is_debris:
+                cid = 0  # 0: Marine Debris / Vessel / Synthetic Polymers
+                conf = max(waste_abun, min(1.0, fdi * 5.0 + waste_abun))
+            elif water_abun >= 0.45 and fdi <= 0.008:
+                cid = 1  # 1: Clean Ocean Water
+                conf = float(water_abun)
+            else:
+                cid = 2  # 2: Organic Algae / Suspended Minerals
+                conf = float(full_a[5] + full_a[6])
+
+            debris_confs.append(round(conf, 3))
             class_ids.append(cid)
 
         df['debris_conf'] = debris_confs
         df['class_id'] = class_ids
         unmix_summary = decompose_spectral_mixture(df)
 
-    # Map backend classes to UI visualization indices (0: Debris, 1: Water, 2: Organic)
-    color_map = {0: 2, 1: 0, 2: 1}
-    df['ui_class_id'] = df['class_id'].map(color_map)
-
-    results = df[['lon', 'lat', 'ui_class_id', 'debris_conf']].rename(
-        columns={'ui_class_id': 'class_id', 'debris_conf': 'debris_confidence'}
+    # Class IDs directly map to Deck.gl layers: 0 = Debris/Plastics, 1 = Water, 2 = Minerals/Organic
+    results = df[['lon', 'lat', 'class_id', 'debris_conf']].rename(
+        columns={'debris_conf': 'debris_confidence'}
     ).to_dict(orient='records')
 
     debris_pct = unmix_summary["total_waste_pct"]

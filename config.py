@@ -47,12 +47,12 @@ PRECISE_CONSTITUENTS = [
 GLOBAL_PRESET_ZONES = [
     {
         "id": "pacific_garbage_patch",
-        "name": "Great Pacific Garbage Patch",
-        "lat": 35.00,
-        "lon": -135.00,
+        "name": "North Pacific Gyre (Midway)",
+        "lat": 28.20,
+        "lon": -177.37,
         "radius": 5000,
         "class_type": "Debris / Microplastics",
-        "description": "Dense accumulation zone of ocean plastics in the North Pacific Gyre."
+        "description": "High-density convergence zone of ocean plastics in the North Pacific Gyre."
     },
     {
         "id": "port_of_la",
