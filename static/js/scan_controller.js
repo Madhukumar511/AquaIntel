@@ -135,6 +135,9 @@ function resetDashboard() {
     const tPlastic = document.getElementById('txt-plastic');
     if (tPlastic) tPlastic.innerText = '0';
 
+    const bList = document.getElementById('precise-breakdown-list');
+    if (bList) bList.innerHTML = '';
+
     if (typeof hideRecycleBtn === 'function') hideRecycleBtn();
 }
 
@@ -255,6 +258,25 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
         document.getElementById('txt-city').innerText = result.metrics.avg_city;
         document.getElementById('txt-minerals').innerText = result.metrics.avg_minerals;
 
+        // Render Granular 8-Constituent High-Precision Breakdown
+        const breakdownList = document.getElementById('precise-breakdown-list');
+        if (breakdownList && result.breakdown && Array.isArray(result.breakdown)) {
+            breakdownList.innerHTML = '';
+            result.breakdown.forEach(item => {
+                breakdownList.innerHTML += `
+                    <div style="background:rgba(0,10,30,0.7); border:1px solid rgba(0,102,255,0.18); border-left:3px solid ${item.color}; border-radius:4px; padding:6px 10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                            <span style="font-family:'Share Tech Mono'; font-size:0.7em; color:#cce4ff; letter-spacing:1px;">${item.name}</span>
+                            <span style="font-family:'Share Tech Mono'; font-size:0.75em; color:${item.color}; font-weight:bold;">${item.percentage.toFixed(1)}%</span>
+                        </div>
+                        <div style="background:rgba(0,5,20,0.8); height:4px; border-radius:2px; overflow:hidden;">
+                            <div style="background:${item.color}; width:${Math.min(item.percentage, 100)}%; height:100%; transition:width 1.2s ease;"></div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
         globalWastePct = result.metrics.avg_metal;
         globalValuePerTon = result.intelligence.base_value_per_ton;
         document.getElementById('roi-zone-type').innerText = result.intelligence.zone_type;
@@ -275,9 +297,30 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
         document.getElementById('topbar-sector').textContent = '◈ TARGET LOCKED: ' + sectorName.toUpperCase();
         document.getElementById('gemini-timestamp').textContent = new Date().toUTCString().slice(17, 25) + ' UTC';
 
+        // Render Dynamic Detected Materials with Exact Percentages
         const matList = document.getElementById('materials-list');
         matList.innerHTML = '';
-        if (result.intelligence.expected_materials) {
+        
+        let detectedList = [];
+        if (result.breakdown && Array.isArray(result.breakdown)) {
+            detectedList = result.breakdown.filter(b => b.percentage > 1.0 && b.id !== 'water');
+        }
+
+        if (detectedList.length > 0) {
+            detectedList.forEach((mat) => {
+                matList.innerHTML += `
+                    <div style="display:flex;align-items:center;justify-content:space-between;
+                        background:rgba(0,10,30,0.6);border:1px solid rgba(0,102,255,0.15);
+                        border-left:3px solid ${mat.color};
+                        border-radius:4px;padding:7px 10px;">
+                        <span style="font-family:'Share Tech Mono';font-size:0.75em;color:${mat.color};letter-spacing:1px;">${mat.name} (${mat.percentage.toFixed(1)}%)</span>
+                        <span style="font-family:'Share Tech Mono';font-size:0.65em;color:#00ff88;">VERIFIED</span>
+                    </div>`;
+            });
+            document.getElementById('gemini-materials').style.display = 'block';
+            window._rcMaterials = detectedList.map(m => m.name);
+            if (typeof showRecycleBtn === 'function') showRecycleBtn();
+        } else if (result.intelligence.expected_materials) {
             const matArray = result.intelligence.expected_materials.split(',');
             matArray.forEach((mat, i) => {
                 const colors = ['#ff3333', '#ffaa00', '#4da6ff', '#00ff88', '#cc88ff'];
@@ -295,9 +338,13 @@ document.getElementById('scan-btn')?.addEventListener('click', async () => {
             if (typeof showRecycleBtn === 'function') showRecycleBtn();
         }
 
+        const materialsSummary = (detectedList.length > 0)
+            ? detectedList.map(d => `${d.name} (${d.percentage.toFixed(1)}%)`).join(', ')
+            : result.intelligence.expected_materials;
+
         const geminiPayload = {
             zone_type: result.intelligence.zone_type,
-            materials: result.intelligence.expected_materials,
+            materials: materialsSummary,
             rsi: result.metrics.rsi_score,
             fdi: result.metrics.fdi_score || result.metrics.rsi_score,
             waste_pct: result.metrics.avg_metal

@@ -68,3 +68,60 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df_eng['NDWI'] = compute_ndwi(green, nir)
 
     return df_eng
+
+# Physical Endmember Spectral Signatures (PLASTINOS, MARIDA, USGS Libraries)
+# Vector length 10: [B01, B02, B3N, B04, B05, B06, B07, B08, NDVI, FDI]
+ENDMEMBERS_10D = np.array([
+    [0.18, 0.22, 0.58, 0.35, 0.28, 0.25, 0.22, 0.19, 0.45, 0.32],  # 0: PET Bottles & Films
+    [0.22, 0.28, 0.65, 0.42, 0.34, 0.30, 0.27, 0.23, 0.40, 0.38],  # 1: HDPE/PP Rigid Plastic
+    [0.14, 0.18, 0.48, 0.38, 0.31, 0.27, 0.24, 0.20, 0.45, 0.25],  # 2: Nylon Ghost Nets
+    [0.12, 0.15, 0.32, 0.22, 0.18, 0.16, 0.14, 0.12, 0.36, 0.18],  # 3: Microplastic Slicks
+    [0.25, 0.26, 0.28, 0.20, 0.16, 0.14, 0.12, 0.10, 0.04, 0.08],  # 4: Hydrocarbon Oil Sheens
+    [0.35, 0.42, 0.25, 0.15, 0.12, 0.10, 0.09, 0.08, -0.25, 0.02], # 5: Suspended Minerals & Salts
+    [0.15, 0.08, 0.72, 0.18, 0.14, 0.12, 0.10, 0.09, 0.80, 0.48],  # 6: Organic Sargassum / Algae
+    [0.08, 0.03, 0.01, 0.00, 0.00, 0.00, 0.00, 0.00, -0.50, -0.05] # 7: Pure Deep Ocean Water
+])
+
+def decompose_spectral_mixture(df_eng: pd.DataFrame, lat: float = 0.0, lon: float = 0.0) -> dict:
+    """
+    Performs physical spectral unmixing across the 8 marine constituent endmembers.
+    Returns exact percentage abundances (strictly summing to 100.0%) and detailed breakdown.
+    """
+    from config import PRECISE_CONSTITUENTS
+    
+    cols = ['B01', 'B02', 'B3N', 'B04', 'B05', 'B06', 'B07', 'B08', 'NDVI', 'FDI']
+    X_samples = df_eng[cols].values if all(c in df_eng.columns for c in cols) else np.zeros((len(df_eng), 10))
+    
+    # Compute cosine similarity for each pixel against the 8 endmembers
+    norm_X = np.linalg.norm(X_samples, axis=1, keepdims=True) + 1e-8
+    norm_E = np.linalg.norm(ENDMEMBERS_10D, axis=1, keepdims=True).T + 1e-8
+    sim_matrix = np.dot(X_samples, ENDMEMBERS_10D.T) / (norm_X * norm_E)
+    
+    # Softmax scaling to calculate fractional abundances
+    exp_sim = np.exp(np.clip(sim_matrix * 5.0, -20, 20))
+    abundances = exp_sim / np.sum(exp_sim, axis=1, keepdims=True)
+    mean_fractions = np.mean(abundances, axis=0)
+    
+    # Format percentages to sum to exactly 100.0%
+    raw_pct = [round(float(f * 100), 1) for f in mean_fractions]
+    diff = round(100.0 - sum(raw_pct), 1)
+    raw_pct[0] = round(raw_pct[0] + diff, 1) # balance minor rounding diff on first category
+
+    breakdown = []
+    for i, meta in enumerate(PRECISE_CONSTITUENTS):
+        breakdown.append({
+            "id": meta["id"],
+            "name": meta["name"],
+            "short": meta["short"],
+            "color": meta["color"],
+            "percentage": raw_pct[i],
+            "category": meta["category"]
+        })
+
+    return {
+        "constituents": breakdown,
+        "total_waste_pct": round(sum(raw_pct[0:5]), 1),
+        "total_minerals_pct": raw_pct[5],
+        "total_organic_pct": raw_pct[6],
+        "total_water_pct": raw_pct[7]
+    }

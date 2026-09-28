@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional
 import numpy as np
 import pandas as pd
 from config import BASE_DIR, FEATURE_COLS_10
+from core.spectral import decompose_spectral_mixture
 
 logger = logging.getLogger("AquaIntel.Model")
 
@@ -61,6 +62,8 @@ def run_model_inference(df_features: pd.DataFrame) -> Dict[str, Any]:
     organic_pct = round(float(df['organic_conf'].mean() * 100), 1)
     fdi_score = round(float(df['FDI'].mean()), 3) if 'FDI' in df.columns else round(float(df['debris_conf'].mean() * 0.4), 3)
 
+    unmix_summary = decompose_spectral_mixture(df)
+
     return {
         "total_clusters": int(len(df[df['class_id'] == 0])),
         "data": results,
@@ -73,7 +76,9 @@ def run_model_inference(df_features: pd.DataFrame) -> Dict[str, Any]:
             "Marine Debris (%)": debris_pct,
             "Ocean Water (%)": water_pct,
             "Organic Algae (%)": organic_pct
-        }
+        },
+        "breakdown": unmix_summary["constituents"],
+        "summary": unmix_summary
     }
 
 def generate_simulation_scan(lat: float, lon: float, radius: int) -> Dict[str, Any]:
@@ -83,10 +88,15 @@ def generate_simulation_scan(lat: float, lon: float, radius: int) -> Dict[str, A
     """
     num_pts = 35
     points = []
+    synthetic_rows = []
     
     # Deterministic seed based on coordinates so the same spot gives consistent results
     coord_seed = int((abs(lat) * 1000 + abs(lon) * 1000)) % 10000
     np.random.seed(coord_seed)
+
+    # Coordinate-aware regional bias (e.g. Pacific gyre vs coast vs deep sea)
+    is_gyre = (30 <= lat <= 40 and -145 <= lon <= -125)  # Pacific Garbage Patch area
+    is_coastal = (abs(lat) < 35 and (100 <= lon <= 130 or -125 <= lon <= -70))
 
     for i in range(num_pts):
         angle = (2 * math.pi / num_pts) * i
@@ -94,21 +104,35 @@ def generate_simulation_scan(lat: float, lon: float, radius: int) -> Dict[str, A
         d_lat = (dist / 111320.0) * math.cos(angle)
         d_lon = (dist / (111320.0 * math.cos(math.radians(lat)))) * math.sin(angle)
 
-        # Distribute classes realistically for ocean scanning
-        cid = 0 if i % 4 == 0 else (1 if i % 2 == 0 else 2)
+        cid = 0 if (is_gyre and i % 2 == 0) else (0 if i % 4 == 0 else (1 if i % 2 == 0 else 2))
         conf = 0.88 if cid == 0 else (0.94 if cid == 1 else 0.81)
 
+        pt_lon = round(lon + d_lon, 6)
+        pt_lat = round(lat + d_lat, 6)
         points.append({
-            "lon": round(lon + d_lon, 6),
-            "lat": round(lat + d_lat, 6),
+            "lon": pt_lon,
+            "lat": pt_lat,
             "class_id": cid,
             "debris_confidence": conf
         })
 
-    debris_pct = 28.5
-    water_pct = 54.0
-    organic_pct = 17.5
-    fdi_score = 0.218
+        # Synthesize 10 spectral features corresponding to this point
+        if cid == 0:  # Plastic cluster
+            row = [0.20, 0.24, 0.60, 0.38, 0.30, 0.26, 0.23, 0.20, 0.42, 0.35]
+        elif cid == 1:  # Water
+            row = [0.09, 0.04, 0.02, 0.01, 0.01, 0.01, 0.00, 0.00, -0.45, -0.04]
+        else:  # Organic / Algae / Minerals
+            row = [0.18, 0.12, 0.55, 0.20, 0.15, 0.12, 0.10, 0.09, 0.65, 0.28]
+        synthetic_rows.append(row)
+
+    cols = ['B01', 'B02', 'B3N', 'B04', 'B05', 'B06', 'B07', 'B08', 'NDVI', 'FDI']
+    synth_df = pd.DataFrame(synthetic_rows, columns=cols)
+    unmix_res = decompose_spectral_mixture(synth_df, lat, lon)
+
+    debris_pct = unmix_res["total_waste_pct"]
+    water_pct = unmix_res["total_water_pct"]
+    organic_pct = unmix_res["total_organic_pct"]
+    fdi_score = round(float(synth_df['FDI'].mean()), 3)
 
     return {
         "status": "success",
@@ -124,9 +148,11 @@ def generate_simulation_scan(lat: float, lon: float, radius: int) -> Dict[str, A
             "Ocean Water (%)": water_pct,
             "Organic Algae (%)": organic_pct
         },
+        "breakdown": unmix_res["constituents"],
+        "summary": unmix_res,
         "intelligence": {
             "zone_type": "Global Marine Environment",
-            "expected_materials": "Microplastics, Synthetic Nets, Ocean Debris, Algae",
+            "expected_materials": "PET Bottles, HDPE Crates, Ghost Nets, Microplastics, Oil Sheens, Minerals",
             "base_value_per_ton": 250
         }
     }

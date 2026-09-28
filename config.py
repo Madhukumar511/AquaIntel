@@ -31,6 +31,18 @@ CLASS_MAP = {
     2: "Organic / Algae Blooms"
 }
 
+# 8 Granular High-Precision Constituent Categories
+PRECISE_CONSTITUENTS = [
+    {"id": "pet_bottles", "name": "PET Bottles & Packaging Films", "short": "PET", "color": "#ff3333", "category": "plastic"},
+    {"id": "hdpe_rigid", "name": "HDPE/PP Rigid Marine Crates", "short": "HDPE", "color": "#ff7700", "category": "plastic"},
+    {"id": "nylon_nets", "name": "Nylon-6 Ghost Fishing Gear", "short": "NYLON", "color": "#ffaa00", "category": "plastic"},
+    {"id": "microplastics", "name": "Microplastic Slick Residue (<5mm)", "short": "MICRO", "color": "#ffdd00", "category": "plastic"},
+    {"id": "oil_sheen", "name": "Hydrocarbon Oil Sheens", "short": "OIL", "color": "#cc66ff", "category": "chemical"},
+    {"id": "minerals", "name": "Suspended Marine Minerals & Salts", "short": "MINERALS", "color": "#00d4ff", "category": "mineral"},
+    {"id": "sargassum", "name": "Organic Sargassum & Algae", "short": "ALGAE", "color": "#00ff88", "category": "organic"},
+    {"id": "water", "name": "Pure Deep Ocean Water", "short": "WATER", "color": "#0055ff", "category": "water"}
+]
+
 # Global Preset High-Impact Marine Zones
 GLOBAL_PRESET_ZONES = [
     {

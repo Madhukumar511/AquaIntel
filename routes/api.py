@@ -105,6 +105,8 @@ def scan_ocean_surface(request: ScanRequest) -> Dict[str, Any]:
             "total_clusters": inference_result["total_clusters"],
             "data": inference_result["data"],
             "metrics": inference_result["metrics"],
+            "breakdown": inference_result.get("breakdown", []),
+            "summary": inference_result.get("summary", {}),
             "intelligence": {
                 "zone_type": context_profile,
                 "expected_materials": materials_expected,

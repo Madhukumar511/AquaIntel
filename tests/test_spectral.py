@@ -10,6 +10,7 @@ from core.spectral import (
     compute_biermann_fdi,
     compute_brightness,
     engineer_features,
+    decompose_spectral_mixture,
     GAMMA_BIERMANN,
 )
 from config import BANDS, FEATURE_COLS_10
@@ -67,3 +68,33 @@ def test_feature_engineering_pipeline():
     assert 'FDI' in df_eng.columns
     assert 'NDWI' in df_eng.columns
     assert 'Brightness' in df_eng.columns
+
+def test_decompose_spectral_mixture():
+    """Verify that spectral unmixing decomposes pixels into 8 constituents strictly summing to 100.0%."""
+    raw_data = {
+        'B01': [1200.0, 1300.0],
+        'B02': [1100.0, 1150.0],
+        'B3N': [2500.0, 1800.0],
+        'B04': [800.0, 900.0],
+        'B05': [600.0, 700.0],
+        'B06': [500.0, 600.0],
+        'B07': [400.0, 500.0],
+        'B08': [300.0, 400.0],
+    }
+    df = pd.DataFrame(raw_data)
+    df_eng = engineer_features(df)
+    
+    result = decompose_spectral_mixture(df_eng)
+    
+    # Check structure
+    assert 'constituents' in result
+    assert len(result['constituents']) == 8
+    
+    # Check percentages sum to exactly 100.0%
+    total_pct = round(sum(c['percentage'] for c in result['constituents']), 1)
+    assert total_pct == 100.0
+    
+    # Check category totals match sum of breakdown
+    waste_sum = round(sum(c['percentage'] for c in result['constituents'] if c['category'] in ['plastic', 'chemical']), 1)
+    assert result['total_waste_pct'] == waste_sum
+

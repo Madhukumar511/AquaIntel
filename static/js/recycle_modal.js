@@ -81,14 +81,76 @@ const RC_DATA = {
             'Refine alloy content by Argon Oxygen Decarburization (AOD).',
             'Roll into marine-grade structural plates.'
         ]
+    },
+    nylon: {
+        icon: '🕸️',
+        img: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&q=80',
+        steps: [
+            'Separate tangled synthetic monofilament nets from lead weights.',
+            'Chemical depolymerization breaks polymer back to caprolactam monomer.',
+            'Purification removes marine salt crystals and degraded additives.',
+            'Repolymerize into 100% virgin-equivalent Econyl nylon yarn.',
+            'Spin into high-durability apparel, swimwear, and commercial carpet fibers.'
+        ]
+    },
+    microplastic: {
+        icon: '🔬',
+        img: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80',
+        steps: [
+            'Surface skim micro-fragments using static electro-coagulation booms.',
+            'Centrifugal density separation separates polymer flakes from marine plankton.',
+            'Low-temperature catalytic pyrolysis decomposes mixed polymers.',
+            'Fractional distillation converts gas output into circular chemical waxes and oils.',
+            'Prevents catastrophic bio-accumulation in global marine food webs.'
+        ]
+    },
+    oil: {
+        icon: '🛢️',
+        img: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=400&q=80',
+        steps: [
+            'Deploy dynamic oleophilic disc skimmers to absorb surface sheen.',
+            'Transfer recovered emulsion to onboard decanter centrifuge tanks.',
+            'De-emulsify oil from seawater (water discharged at <15 ppm purity).',
+            'Heavy hydrocarbon fraction routed to industrial fuel and asphalt blending.',
+            'Mitigates oxygen starvation for pelagic surface organisms.'
+        ]
+    },
+    minerals: {
+        icon: '💎',
+        img: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&q=80',
+        steps: [
+            'Harvest suspended marine sediment and brine precipitate.',
+            'Hydro-cyclone classifies silica sand from mineral salts.',
+            'Extract agricultural magnesium chloride and high-purity calcium carbonate.',
+            'Use recovered mineral cake in coastal erosion reef restoration blocks.',
+            'Zero waste circular utilization.'
+        ]
+    },
+    sargassum: {
+        icon: '🌿',
+        img: 'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=400&q=80',
+        steps: [
+            'Harvest floating Sargassum / algal biomass before beach rotting.',
+            'Solar dry and crush into organic seaweed meal.',
+            'Extract high-value sodium alginate for pharmaceutical binders.',
+            'Anaerobic fermentation yields methane biogas for coastal energy grids.',
+            'Residual biomass formulated into organic potassium fertilizer.'
+        ]
     }
 };
 
 function getRcData(materialName) {
     const key = materialName.toLowerCase().trim();
+    if (key.includes('pet') || key.includes('bottle')) return { name: materialName.trim(), ...RC_DATA['plastic'] };
+    if (key.includes('nylon') || key.includes('net') || key.includes('ghost')) return { name: materialName.trim(), ...RC_DATA['nylon'] };
+    if (key.includes('micro')) return { name: materialName.trim(), ...RC_DATA['microplastic'] };
+    if (key.includes('oil') || key.includes('sheen') || key.includes('hydrocarbon')) return { name: materialName.trim(), ...RC_DATA['oil'] };
+    if (key.includes('mineral') || key.includes('salt')) return { name: materialName.trim(), ...RC_DATA['minerals'] };
+    if (key.includes('sargassum') || key.includes('algae') || key.includes('organic')) return { name: materialName.trim(), ...RC_DATA['sargassum'] };
     if (key.includes('electronic') || key.includes('e-waste')) return { name: materialName.trim(), ...RC_DATA['e-waste'] };
-    if (key.includes('scrap metal') || key.includes('metal')) return { name: materialName.trim(), ...RC_DATA['steel'] };
-    if (key.includes('debris') || key.includes('net') || key.includes('plastic')) return { name: materialName.trim(), ...RC_DATA['plastic'] };
+    if (key.includes('scrap metal') || key.includes('metal') || key.includes('steel')) return { name: materialName.trim(), ...RC_DATA['steel'] };
+    if (key.includes('debris') || key.includes('plastic') || key.includes('hdpe')) return { name: materialName.trim(), ...RC_DATA['plastic'] };
+    
     for (const k in RC_DATA) {
         if (k !== '_default' && key.includes(k)) {
             return { name: materialName.trim(), ...RC_DATA[k] };
